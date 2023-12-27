@@ -1,0 +1,15 @@
+_start:
+    SRA 10 *A
+    SRA 42 *B
+
+    ADC *A *B
+    SRA *C
+
+    (
+        SRA 5 *LOCALA
+        SRA 8 *LOCALB
+
+        MUL *LOCALA *LOCALB
+    )
+
+    TSE 0b00001111
