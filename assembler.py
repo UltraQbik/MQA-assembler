@@ -42,7 +42,7 @@ def assemble_code(code: str):
                 token_list.append(token)
                 token_list.append("\n")
                 token = ""
-            elif char != " ":
+            elif char != " " and char != "\n":
                 token += char
         if token:
             token_list.append(token)
@@ -50,16 +50,15 @@ def assemble_code(code: str):
         return token_list
 
     def build_token_tree(token_list: list):
-        tree = []
-        cur_scope = []
+        tree = {"main": []}
+        scope = "main"
 
         for token in token_list:
-            if token == "(":
-                pass
-            elif token == ")":
-                pass
+            if token[-1] == ":":
+                scope = token[:-1]
+                tree[scope] = []
             else:
-                cur_scope.append(token)
+                tree[scope].append(token)
 
         return tree
 

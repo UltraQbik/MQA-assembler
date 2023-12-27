@@ -13,3 +13,9 @@ _start:
     )
 
     TSE 0b00001111
+
+something:
+    AND *A *B
+    SRA *D
+    RET 0
+
