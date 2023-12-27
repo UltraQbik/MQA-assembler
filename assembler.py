@@ -19,8 +19,8 @@ def read_instruction_set():
                 "arguments": decoded_instruction[2]
             }
 
-    for item, val in GLOBAL_INSTRUCTION_SET.items():
-        print(f"{item: <4} | {val}")
+    # for item, val in GLOBAL_INSTRUCTION_SET.items():
+    #     print(f"{item: <4} | {val}")
 
 
 def assemble_code(code: str):
@@ -50,15 +50,28 @@ def assemble_code(code: str):
         return token_list
 
     def build_token_tree(token_list: list):
-        tree = {"main": []}
-        scope = "main"
+        tree = []
 
-        for token in token_list:
-            if token[-1] == ":":
-                scope = token[:-1]
-                tree[scope] = []
-            else:
-                tree[scope].append(token)
+        index = 0
+        while index < len(token_list):
+            token = token_list[index]
+            index += 1
+            if token == "{":
+                nesting = 0
+                offset = 1
+                while index + offset < len(token_list):
+                    tok = token_list[index + offset]
+                    if tok == "{":
+                        nesting += 1
+                    elif tok == "}" and nesting == 0:
+                        tree.append(build_token_tree(token_list[index+1:index+offset]))
+                        break
+                    elif tok == "}":
+                        nesting -= 1
+                    offset += 1
+                index += offset
+            elif token != "}":
+                tree.append(token)
 
         return tree
 

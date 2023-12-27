@@ -5,12 +5,16 @@ _start:
     ADC *A *B
     SRA *C
 
-    (
+    {
         SRA 5 *LOCALA
         SRA 8 *LOCALB
 
+        {
+            UO 10
+        }
+
         MUL *LOCALA *LOCALB
-    )
+    }
 
     TSE 0b00001111
 
