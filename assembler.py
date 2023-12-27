@@ -1,28 +1,3 @@
-GLOBAL_INSTRUCTION_SET: None | dict = None
-
-
-def read_instruction_set():
-    global GLOBAL_INSTRUCTION_SET
-    GLOBAL_INSTRUCTION_SET = {}
-    with open("instruction_set.mqi", "r") as file:
-        instruction_set = file.read().replace("\r\n", "\n").split("\n")
-        for instruction in instruction_set:
-            if not instruction:
-                continue
-
-            decoded_instruction = instruction.split(" - ")
-            if decoded_instruction[1] == "/":
-                continue
-
-            GLOBAL_INSTRUCTION_SET[decoded_instruction[1]] = {
-                "index": decoded_instruction[0],
-                "arguments": decoded_instruction[2]
-            }
-
-    # for item, val in GLOBAL_INSTRUCTION_SET.items():
-    #     print(f"{item: <4} | {val}")
-
-
 def assemble_code(code: str):
     def separate_tokens() -> list:
         token = ""
@@ -42,6 +17,10 @@ def assemble_code(code: str):
                 token_list.append(token)
                 token_list.append("\n")
                 token = ""
+            elif char in "({[]})":
+                if token != "":
+                    token_list.append(token)
+                    token = ""
             elif char != " " and char != "\n":
                 token += char
         if token:
@@ -56,21 +35,22 @@ def assemble_code(code: str):
         while index < len(token_list):
             token = token_list[index]
             index += 1
-            if token == "{":
-                nesting = 0
+
+            if token in "({[":
+                nest = 0
                 offset = 1
-                while index + offset < len(token_list):
-                    tok = token_list[index + offset]
-                    if tok == "{":
-                        nesting += 1
-                    elif tok == "}" and nesting == 0:
+                while index+offset < len(token_list):
+                    token = token_list[index+offset]
+                    if token in "({[":
+                        nest += 1
+                    elif token in "]})" and nest == 0:
                         tree.append(build_token_tree(token_list[index+1:index+offset]))
                         break
-                    elif tok == "}":
-                        nesting -= 1
+                    elif token in "]})":
+                        nest -= 1
                     offset += 1
                 index += offset
-            elif token != "}":
+            elif token not in "]})":
                 tree.append(token)
 
         return tree
