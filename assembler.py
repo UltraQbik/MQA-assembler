@@ -4,7 +4,6 @@ def assemble_code(code: str):
         token_list = []
 
         char_ptr = 0
-        char = None
         while char_ptr < len(code):
             # get next character
             char = code[char_ptr]
@@ -17,10 +16,11 @@ def assemble_code(code: str):
                 token_list.append(token)
                 token_list.append("\n")
                 token = ""
-            elif char in "({[]})":
+            elif char in "({[]});":
                 if token != "":
                     token_list.append(token)
                     token = ""
+                token_list.append(char)
             elif char != " " and char != "\n":
                 token += char
         if token:
@@ -37,20 +37,22 @@ def assemble_code(code: str):
             index += 1
 
             if token in "({[":
-                nest = 0
-                offset = 1
-                while index+offset < len(token_list):
-                    token = token_list[index+offset]
-                    if token in "({[":
-                        nest += 1
-                    elif token in "]})" and nest == 0:
-                        tree.append(build_token_tree(token_list[index+1:index+offset]))
+                scope = []
+                nesting = 0
+                while index < len(token_list):
+                    token = token_list[index]
+                    index += 1
+
+                    if token in "]})" and nesting == 0:
+                        tree.append(build_token_tree(scope))
                         break
                     elif token in "]})":
-                        nest -= 1
-                    offset += 1
-                index += offset
-            elif token not in "]})":
+                        nesting -= 1
+                    elif token in "({[":
+                        nesting += 1
+
+                    scope.append(token)
+            else:
                 tree.append(token)
 
         return tree
