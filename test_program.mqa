@@ -1,3 +1,20 @@
-FOR (B = 0; B < 10; B++) {
-    UO *B
-}
+_start:
+    LRA 255
+    SRA *I
+    {
+        LRA *I
+        JMPZ *_end
+        DEC
+        SRA *I
+
+        {
+            AND 1
+            JMPZ !^
+            PRW 0
+        }
+
+        JMP ^
+    }
+
+_end:
+    HALT
