@@ -1,62 +1,81 @@
-def assemble_code(code: str):
-    def separate_tokens() -> list:
-        token = ""
-        token_list = []
+def separate_tokens(code: str) -> list:
+    token = ""
+    token_list = []
 
-        char_ptr = 0
-        while char_ptr < len(code):
-            # get next character
-            char = code[char_ptr]
-            char_ptr += 1
+    char_ptr = 0
+    while char_ptr < len(code):
+        # get next character
+        char = code[char_ptr]
+        char_ptr += 1
 
-            if char == " " and token != "":
-                token_list.append(token)
-                token = ""
-            elif char == "\n" and token != "":
-                token_list.append(token)
-                token_list.append("\n")
-                token = ""
-            elif char in "({[]});":
-                if token != "":
-                    token_list.append(token)
-                    token = ""
-                token_list.append(char)
-            elif char != " " and char != "\n":
-                token += char
-        if token:
+        if char == " " and token != "":
             token_list.append(token)
-            token_list.append("\n")
-        return token_list
+            token = ""
+        elif char in "\n," and token != "":
+            token_list.append(token)
+            token_list.append(char)
+            token = ""
+        elif char in "({[]})":
+            if token != "":
+                token_list.append(token)
+                token = ""
+            token_list.append(char)
+        elif char != " " and char != "\n":
+            token += char
+    if token:
+        token_list.append(token)
+        token_list.append("\n")
+    return token_list
 
-    def build_token_tree(token_list: list):
-        tree = []
 
-        index = 0
-        while index < len(token_list):
-            token = token_list[index]
-            index += 1
+def delete_comments(token_list: list):
+    new_token_list = []
+    commented = False
+    for token in token_list:
+        if token == ";":
+            commented = True
+            continue
+        elif token == "\n":
+            commented = False
+        if not commented:
+            new_token_list.append(token)
+    return new_token_list
 
-            if token in "({[":
-                scope = []
-                nesting = 0
-                while index < len(token_list):
-                    token = token_list[index]
-                    index += 1
 
-                    if token in "]})" and nesting == 0:
-                        tree.append(build_token_tree(scope))
-                        break
-                    elif token in "]})":
-                        nesting -= 1
-                    elif token in "({[":
-                        nesting += 1
+def build_token_tree(token_list: list):
+    tree = []
 
-                    scope.append(token)
-            else:
-                tree.append(token)
+    index = 0
+    while index < len(token_list):
+        token = token_list[index]
+        index += 1
 
-        return tree
+        if token in "({[":
+            scope = []
+            nesting = 0
+            while index < len(token_list):
+                token = token_list[index]
+                index += 1
 
-    tok_list = separate_tokens()
+                if token in "]})" and nesting == 0:
+                    tree.append(build_token_tree(scope))
+                    break
+                elif token in "]})":
+                    nesting -= 1
+                elif token in "({[":
+                    nesting += 1
+
+                scope.append(token)
+        else:
+            tree.append(token)
+
+    return tree
+
+
+def assemble_code(code: str):
+    tok_list = separate_tokens(code)
+    print(tok_list)
+    tok_list = delete_comments(tok_list)
+    print(tok_list)
     tok_tree = build_token_tree(tok_list)
     print(tok_tree)

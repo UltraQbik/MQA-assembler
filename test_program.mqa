@@ -1,3 +1,31 @@
-FOR (B = 0; B < 10; B++) {
-    UO *B
+; This is a comment
+; there are no multiline comments, cuz why would you need one anyway?
+
+
+; This is a macro
+; arguments can be either pointers, or a just numbers
+macro add(arg1, arg2, arg3) {
+    LRA arg1        ; load register ACC with 'arg1'
+    ADD arg2        ; add 'arg2' to ACC
+    SRA arg3        ; store ACC to arg3
 }
+
+; This is a macro overloading
+macro add(arg1, arg2) {
+    LRA arg1        ; load register ACC with 'arg1'
+    ADD arg2        ; add 'arg2' to ACC
+}
+
+
+; this is a start header, the place where your program starts
+_start:
+    ; Adds 5 and 6 together and stores into address 0
+    add(5, 6, 0)
+
+    ; Add $0 and 58 together and leave it in ACC
+    add($0, 58)
+
+
+; this is an end header, the place where your programs ends. Optional.
+_end:
+    HALT
