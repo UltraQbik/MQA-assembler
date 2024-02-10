@@ -51,21 +51,26 @@ def build_token_tree(token_list: list):
         index += 1
 
         if token in "({[":
+            bracket = token
+            opposite_bracket = {"(": ")", "{": "}", "[": "]"}[bracket]
+
             scope = []
             nesting = 0
             while index < len(token_list):
                 token = token_list[index]
                 index += 1
 
-                if token in "]})" and nesting == 0:
+                if token == opposite_bracket and nesting == 0:
                     tree.append(build_token_tree(scope))
                     break
-                elif token in "]})":
+                elif token == opposite_bracket:
                     nesting -= 1
-                elif token in "({[":
+                elif token == bracket:
                     nesting += 1
 
                 scope.append(token)
+            else:
+                raise SyntaxError("no closing bracket")
         else:
             tree.append(token)
 
