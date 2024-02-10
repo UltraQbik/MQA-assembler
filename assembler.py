@@ -1,3 +1,20 @@
+class Token:
+    def __init__(self, token: str):
+        self.token = token
+
+    def __eq__(self, other):
+        return self.token == other
+
+    def __contains__(self, item):
+        return item in self.token
+
+    def __repr__(self):
+        return f"'{self.token}'"
+
+    def __str__(self):
+        return self.token
+
+
 class Assembler:
     def __init__(self):
         """
@@ -140,3 +157,11 @@ class Assembler:
                 tree.append(token)
         # return the token tree (or a local scope)
         return tree
+
+    def remove_newlines(self):
+        """
+        Removes duplicate newlines
+        :return: none
+        """
+
+
