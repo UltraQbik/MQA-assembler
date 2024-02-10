@@ -42,8 +42,17 @@ class Assembler:
         """
 
         self.code = code
+
+        # separate the code into tokens
         self._separate_tokens()
+
+        # delete comments
         self._delete_comments()
+
+        # delete duplicate newlines
+        self._remove_newlines()
+
+        # create a token tree
         self.token_list = self._build_token_tree(self.token_list)
 
     def _separate_tokens(self):
@@ -171,9 +180,14 @@ class Assembler:
         # return the token tree (or a local scope)
         return tree
 
-    def remove_newlines(self):
+    def _remove_newlines(self):
         """
         Removes duplicate newlines
         :return: none
         """
-        pass
+        index = 0
+        while index < len(self.token_list)-1:
+            if self.token_list[index] == "\n" and self.token_list[index+1] == "\n":
+                self.token_list.pop(index)
+            else:
+                index += 1
