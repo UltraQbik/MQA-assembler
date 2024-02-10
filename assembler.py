@@ -197,3 +197,11 @@ class Assembler:
             # otherwise go to the next index
             else:
                 index += 1
+
+    def _compile(self):
+        """
+        Goes through all the tokens, and compiles them
+        :return:
+        """
+
+        pass
