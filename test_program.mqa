@@ -25,6 +25,9 @@ _start:
     ; Add $0 and 58 together and leave it in ACC
     add($0, 58)
 
+    ; End program
+    JMP $_end
+
 
 ; this is an end header, the place where your programs ends. Optional.
 _end:
