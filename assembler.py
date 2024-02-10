@@ -186,9 +186,14 @@ class Assembler:
         Removes duplicate newlines
         :return: none
         """
+
+        # set index to 0
         index = 0
         while index < len(self.token_list)-1:
+            # if there are 2 newlines in a row, delete the first one
             if self.token_list[index] == "\n" and self.token_list[index+1] == "\n":
                 self.token_list.pop(index)
+
+            # otherwise go to the next index
             else:
                 index += 1
