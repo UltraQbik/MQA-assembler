@@ -1,12 +1,20 @@
 class Token:
-    def __init__(self, token: str):
-        self.token = token
+    def __init__(self, token: str, code_line: int):
+        """
+        Token class for the proper traceback.
+        Acts mostly as just a string
+        :param token: just a string
+        :param code_line: line at which the token was defined
+        """
 
-    def __eq__(self, other):
-        return self.token == other
+        self.token: str = token
+        self.code_line: int = code_line
 
     def __contains__(self, item):
         return item in self.token
+
+    def __eq__(self, other):
+        return self.token == other
 
     def __repr__(self):
         return f"'{self.token}'"
@@ -52,26 +60,31 @@ class Assembler:
 
         # initialize character pointer to 0
         char_ptr = 0
+        code_line = 0
         while char_ptr < len(self.code):
             # get next character
             char = self.code[char_ptr]
             char_ptr += 1
 
+            # code line
+            if char == "\n":
+                code_line += 1
+
             # spaces between things
             if char == " " and token != "":
-                self.token_list.append(token)
+                self.token_list.append(Token(token, code_line))
                 token = ""
 
             # new lines
             elif char in "\n," and token != "":
-                self.token_list.append(token)
+                self.token_list.append(Token(token, code_line))
                 self.token_list.append(char)
                 token = ""
 
             # brackets
             elif char in "({[]})":
                 if token != "":
-                    self.token_list.append(token)
+                    self.token_list.append(Token(token, code_line))
                     token = ""
                 self.token_list.append(char)
 
@@ -124,7 +137,7 @@ class Assembler:
         index = 0
         while index < len(token_list):
             # fetch current token
-            token = token_list[index]
+            token = str(token_list[index])
             index += 1
 
             # when we find an opening bracket, create a new scope
@@ -133,7 +146,7 @@ class Assembler:
                 nesting = 0
                 while index < len(token_list):
                     # fetch inner scope token
-                    token = token_list[index]
+                    token = str(token_list[index])
                     index += 1
 
                     # if another opening bracket of same type is found => increment the nesting variable
