@@ -87,7 +87,7 @@ class Assembler:
             # new lines
             elif char in "\n," and token != "":
                 self.token_list.append(Token(token, code_line))
-                self.token_list.append(char)
+                self.token_list.append(Token(char, code_line))
                 token = ""
 
             # brackets
@@ -95,7 +95,7 @@ class Assembler:
                 if token != "":
                     self.token_list.append(Token(token, code_line))
                     token = ""
-                self.token_list.append(char)
+                self.token_list.append(Token(char, code_line))
 
             # anything else
             elif char != " " and char != "\n":
@@ -103,8 +103,8 @@ class Assembler:
 
         # if there is still a token at the end of the file
         if token:
-            self.token_list.append(token)
-            self.token_list.append("\n")
+            self.token_list.append(Token(token, code_line))
+            self.token_list.append(Token("\n", code_line))
 
     def _delete_comments(self):
         """
@@ -146,27 +146,27 @@ class Assembler:
         index = 0
         while index < len(token_list):
             # fetch current token
-            token = str(token_list[index])
+            token = token_list[index]
             index += 1
 
             # when we find an opening bracket, create a new scope
-            if token in "({[":
+            if str(token) in "({[":
                 scope = []
                 nesting = 0
                 prev_index = token_list[index].code_line
                 while index < len(token_list):
                     # fetch inner scope token
-                    token = str(token_list[index])
+                    token = token_list[index]
                     index += 1
 
                     # if another opening bracket of same type is found => increment the nesting variable
                     # break out of the loop only when the nesting is 0 and the closing bracket is found
-                    if token in "]})" and nesting == 0:
+                    if str(token) in "]})" and nesting == 0:
                         tree.append(self._build_token_tree(scope))
                         break
-                    elif token in "]})":
+                    elif str(token) in "]})":
                         nesting -= 1
-                    elif token in "({[":
+                    elif str(token) in "({[":
                         nesting += 1
 
                     # append tokens to the local scope
