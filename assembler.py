@@ -163,5 +163,4 @@ class Assembler:
         Removes duplicate newlines
         :return: none
         """
-
-
+        pass
