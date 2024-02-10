@@ -153,6 +153,7 @@ class Assembler:
             if token in "({[":
                 scope = []
                 nesting = 0
+                prev_index = token_list[index].code_line
                 while index < len(token_list):
                     # fetch inner scope token
                     token = str(token_list[index])
@@ -173,7 +174,7 @@ class Assembler:
 
                 # if the end of the code was reached => die.
                 else:
-                    raise SyntaxError("No closing bracket was found;")
+                    raise SyntaxError(f"No closing bracket was found; line {prev_index}")
             else:
                 # append tokens to the global scope
                 tree.append(token)
