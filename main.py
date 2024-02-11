@@ -1,4 +1,5 @@
 from tokenizer import Tokenizer
+from assembler import Assembler
 from asm_types import Token
 
 
@@ -13,11 +14,13 @@ def print_recursive(token_list: list[Token | list], nesting: int = 0):
 
 
 def main():
-    asm = Tokenizer()
+    tokenizer = Tokenizer()
     with open("test_program.mqa", "r") as file:
-        asm.tokenize(file.read())
+        tokenizer.tokenize(file.read())
 
-    print_recursive(asm.token_tree)
+    asm = Assembler(tokenizer.token_tree)
+    asm.assemble()
+    print(asm.macros)
 
 
 if __name__ == '__main__':
