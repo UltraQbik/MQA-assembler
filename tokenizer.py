@@ -1,3 +1,6 @@
+from typing import Any
+
+
 class Token:
     def __init__(self, token: str, code_line: int):
         """
@@ -17,23 +20,23 @@ class Token:
         return self.token == other
 
     def __repr__(self):
-        return f"'{self.token}'"
+        return self.token.__repr__()
 
     def __str__(self):
         return self.token
 
 
-class Assembler:
+class Tokenizer:
     def __init__(self):
         """
-        The main assembler class.
-        It assembles the code, does the macros, variable assigns, jump pointers, etc.
+        The main tokenizer class.
+        It spits the code into tokens
         """
 
         self.code: str | None = None
-        self.token_list: list | None = None
+        self.token_tree: list[Token | Any] | None = None
 
-    def assemble(self, code: str):
+    def tokenize(self, code: str):
         """
         Spaghetti code that assembles the code!
         I know it's stupid, but I don't know how to make it better
@@ -53,7 +56,7 @@ class Assembler:
         self._remove_newlines()
 
         # create a token tree
-        self.token_list = self._build_token_tree(self.token_list)
+        self.token_tree = self._build_token_tree(self.token_tree)
 
     def _separate_tokens(self):
         """
@@ -65,11 +68,11 @@ class Assembler:
         token = ""
 
         # initialize token list
-        self.token_list = []
+        self.token_tree = []
 
         # initialize character pointer to 0
         char_ptr = 0
-        code_line = 0
+        code_line = 1
         while char_ptr < len(self.code):
             # get next character
             char = self.code[char_ptr]
@@ -81,21 +84,21 @@ class Assembler:
 
             # spaces between things
             if char == " " and token != "":
-                self.token_list.append(Token(token, code_line))
+                self.token_tree.append(Token(token, code_line))
                 token = ""
 
             # new lines
             elif char in "\n," and token != "":
-                self.token_list.append(Token(token, code_line))
-                self.token_list.append(Token(char, code_line))
+                self.token_tree.append(Token(token, code_line))
+                self.token_tree.append(Token(char, code_line))
                 token = ""
 
             # brackets
             elif char in "({[]})":
                 if token != "":
-                    self.token_list.append(Token(token, code_line))
+                    self.token_tree.append(Token(token, code_line))
                     token = ""
-                self.token_list.append(Token(char, code_line))
+                self.token_tree.append(Token(char, code_line))
 
             # anything else
             elif char != " " and char != "\n":
@@ -103,8 +106,8 @@ class Assembler:
 
         # if there is still a token at the end of the file
         if token:
-            self.token_list.append(Token(token, code_line))
-            self.token_list.append(Token("\n", code_line))
+            self.token_tree.append(Token(token, code_line))
+            self.token_tree.append(Token("\n", code_line))
 
     def _delete_comments(self):
         """
@@ -115,7 +118,7 @@ class Assembler:
         # create new token list
         new_token_list = []
         commented = False
-        for token in self.token_list:
+        for token in self.token_tree:
             # deletus everything after the ';'
             if token == ";":
                 commented = True
@@ -130,7 +133,7 @@ class Assembler:
                 new_token_list.append(token)
 
         # yes
-        self.token_list = new_token_list
+        self.token_tree = new_token_list
 
     def _build_token_tree(self, token_list: list):
         """
@@ -189,19 +192,11 @@ class Assembler:
 
         # set index to 0
         index = 0
-        while index < len(self.token_list)-1:
+        while index < len(self.token_tree)-1:
             # if there are 2 newlines in a row, delete the first one
-            if self.token_list[index] == "\n" and self.token_list[index+1] == "\n":
-                self.token_list.pop(index)
+            if self.token_tree[index] == "\n" and self.token_tree[index + 1] == "\n":
+                self.token_tree.pop(index)
 
             # otherwise go to the next index
             else:
                 index += 1
-
-    def _compile(self):
-        """
-        Goes through all the tokens, and compiles them
-        :return:
-        """
-
-        pass
