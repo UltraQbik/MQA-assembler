@@ -1,29 +1,5 @@
 from typing import Any
-
-
-class Token:
-    def __init__(self, token: str, code_line: int):
-        """
-        Token class for the proper traceback.
-        Acts mostly as just a string
-        :param token: just a string
-        :param code_line: line at which the token was defined
-        """
-
-        self.token: str = token
-        self.code_line: int = code_line
-
-    def __contains__(self, item):
-        return item in self.token
-
-    def __eq__(self, other):
-        return self.token == other
-
-    def __repr__(self):
-        return self.token.__repr__()
-
-    def __str__(self):
-        return self.token
+from asm_types import Token
 
 
 class Tokenizer:
@@ -135,7 +111,7 @@ class Tokenizer:
         # yes
         self.token_tree = new_token_list
 
-    def _build_token_tree(self, token_list: list):
+    def _build_token_tree(self, token_list: list[Token]):
         """
         Builds the token tree
         :param token_list: yes
@@ -156,7 +132,7 @@ class Tokenizer:
             if str(token) in "({[":
                 scope = []
                 nesting = 0
-                prev_index = token_list[index].code_line
+                prev_index = token_list[index].traceback
                 while index < len(token_list):
                     # fetch inner scope token
                     token = token_list[index]
