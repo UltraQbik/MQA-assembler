@@ -90,6 +90,7 @@ class Assembler:
 
         try:
             self._precompile()
+            self._compile_and_link()
         except Exception as exc:
             print(f"An exception have occurred;\n\t{exc} at line: {self._traceback}")
 
@@ -103,7 +104,6 @@ class Assembler:
         # reset things
         self._instructions: list[list[Token] | Label] = []
         self._macros: dict[str, list[dict]] = {}
-        self._labels: dict[str, int] = {}
 
         self._reset_token_pointer()
         while (token := self._next_token()) is not None:
@@ -120,6 +120,10 @@ class Assembler:
                 if not isinstance(macro_name, Token):
                     self._traceback = token.traceback
                     raise SyntaxError("Invalid syntax")
+
+                # warning when macro name is the same as the name of one of the instructions
+                if macro_name in self._instruction_set:
+                    print(f"warn: macro '{macro_name}' has the same name as one of the instruction")
 
                 # next token should be an argument list
                 macro_args = self._next_token()
@@ -167,7 +171,7 @@ class Assembler:
 
             # labels
             elif token.token[-1] == ":":
-                self._instructions.append(Label(token.token[:-1], 0))
+                self._instructions.append(Label(token.token[:-1], token.traceback))
 
     def _compile_and_link(self):
         """
@@ -175,6 +179,34 @@ class Assembler:
         :return: none
         """
 
+        # clear labels
+        self._labels: dict[str, int] = {}
+
         self._reset_instruction_pointer()
         while (instruction := self._next_instruction()) is not None:
-            pass
+            # skip labels for now
+            if isinstance(instruction, Label):
+                continue
+
+            # macros
+            if instruction[0] in self._macros:
+                macro_name = instruction[0]
+                macro_argn = len(instruction[1])
+
+                # search for the macro with the same amount of arguments
+                macro_body = None
+                for macro in self._macros[macro_name.token]:
+                    if macro["argn"] == macro_argn:
+                        macro_body = macro["body"]
+                        break
+
+                # if that macro wasn't found => raise an error
+                if macro_body is None:
+                    self._traceback = macro_name.traceback
+                    raise TypeError(f"Incorrect amount of arguments for macro '{macro_name}'")
+
+        # # Labels
+        # self._reset_instruction_pointer()
+        # while (instruction := self._next_instruction()) is not None:
+        #     if isinstance(instruction, Label):
+        #         self._labels[instruction.token] = self._instruction_ptr

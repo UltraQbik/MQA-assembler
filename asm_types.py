@@ -24,6 +24,9 @@ class Token:
     def __eq__(self, other):
         return self._token == other
 
+    def __len__(self):
+        return len(self._token)
+
     def __repr__(self):
         return self._token.__repr__()
 
