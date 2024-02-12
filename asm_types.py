@@ -29,3 +29,10 @@ class Token:
 
     def __str__(self):
         return self._token
+
+
+class Label(Token):
+    """
+    Acts exactly the same way the token does,
+    Just a little bit special
+    """

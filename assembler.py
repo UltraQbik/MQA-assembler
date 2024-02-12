@@ -1,4 +1,4 @@
-from asm_types import Token
+from asm_types import Token, Label
 
 
 class Assembler:
@@ -8,8 +8,11 @@ class Assembler:
         # pointer to the current token
         self._token_ptr: int = -1
 
+        # pointer to the current instruction
+        self._instruction_ptr: int = -1
+
         # instructions
-        self._instructions: list[list[Token]] | None = None
+        self._instructions: list[list[Token] | Label] | None = None
 
         # macros
         self._macros: dict[str, list[dict]] | None = None
@@ -56,6 +59,26 @@ class Assembler:
             return None
         return self._token_tree[self._token_ptr]
 
+    def _reset_instruction_pointer(self):
+        """
+        Resets the instruction pointer to -1
+        :return: none
+        """
+
+        self._instruction_ptr = -1
+
+    def _next_instruction(self, offset: int = 1) -> list[Token] | Label | None:
+        """
+        Returns next instruction from self._instructions
+        :param offset: offset for the instruction pointer
+        :return: the next item in the self._instructions or None when the end of the list is reached
+        """
+
+        self._instruction_ptr += offset
+        if self._instruction_ptr >= len(self._instructions):
+            return None
+        return self._instructions[self._instruction_ptr]
+
     def assemble(self):
         """
         Goes through all the tokens, and assembles them
@@ -63,18 +86,19 @@ class Assembler:
         """
 
         try:
-            self._assemble()
+            self._precompile()
         except Exception as exc:
             print(f"An exception have occurred;\n\t{exc}\nline: {self._next_token(0).traceback}")
 
-    def _assemble(self):
+    def _precompile(self):
         """
-        Goes through all the tokens, and assembles them
+        Goes through all the tokens, and assembles them.
+        Creates macros, puts all the instructions, labels and macros into self._instructions
         :return: none
         """
 
         # reset things
-        self._instructions: list[list[Token]] = []
+        self._instructions: list[list[Token] | Label] = []
         self._macros: dict[str, list[dict]] = {}
         self._labels: dict[str, int] = {}
 
@@ -134,3 +158,7 @@ class Assembler:
                     instruction.append(tok)
 
                 self._instructions.append(instruction)
+
+            # labels
+            elif token.token[-1] == ":":
+                self._instructions.append(Label(token.token[:-1], 0))
