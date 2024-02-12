@@ -20,7 +20,9 @@ def main():
 
     asm = Assembler(tokenizer.token_tree)
     asm.assemble()
-    print(asm.macros)
+
+    print(asm._macros)
+    print(asm._instructions)
 
 
 if __name__ == '__main__':

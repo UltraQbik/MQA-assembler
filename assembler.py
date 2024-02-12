@@ -8,13 +8,39 @@ class Assembler:
         # pointer to the current token
         self._token_ptr: int = -1
 
+        # instructions
+        self._instructions: list[list[Token]] | None = None
+
         # macros
-        self.macros: dict[str, list[dict]] | None = None
+        self._macros: dict[str, list[dict]] | None = None
+
+        # jump / call labels
+        self._labels: dict[str, int] | None = None
+
+        # instruction set
+        self._instruction_set: dict[str, int] | None = None
+        self._load_instruction_set()
+
+    def _load_instruction_set(self):
+        """
+        Loads the MQ instruction set (MQIS)
+        :return: none
+        """
+
+        # initiate instruction set to be an empty dict
+        self._instruction_set = {}
+
+        # read Mini Quantum's instruction set
+        with open("mqis", "r") as file:
+            # go through each line and yes
+            for idx, line in enumerate(file):
+                if line != "\n":
+                    self._instruction_set[line[:-1]] = idx
 
     def _reset_token_pointer(self):
         """
         Resets the token pointer to -1
-        :return:
+        :return: none
         """
         self._token_ptr = -1
 
@@ -47,11 +73,17 @@ class Assembler:
         :return: none
         """
 
-        # reset the macros
-        self.macros: dict[str, list[dict]] = {}
+        # reset things
+        self._instructions: list[list[Token]] = []
+        self._macros: dict[str, list[dict]] = {}
+        self._labels: dict[str, int] = {}
 
         self._reset_token_pointer()
         while (token := self._next_token()) is not None:
+            # skip token lists
+            if isinstance(token, list):
+                continue
+
             # macro keyword
             if token == "macro":
                 # next token should be a name of the macro
@@ -79,12 +111,26 @@ class Assembler:
                     raise SyntaxError("Invalid syntax")
 
                 # append new macro
-                if macro_name.token not in self.macros:
-                    self.macros[macro_name.token] = []
-                self.macros[macro_name.token].append(
+                if macro_name.token not in self._macros:
+                    self._macros[macro_name.token] = []
+                self._macros[macro_name.token].append(
                     {
                         "argn": len(macro_args),
                         "args": macro_args,
                         "body": macro_body
                     }
                 )
+
+            # instructions and macros
+            elif token.token in self._instruction_set or token.token in self._macros:
+                # empty instruction list
+                instruction = list()
+
+                # append instruction name to instruction list
+                instruction.append(token)
+
+                # append tokens to the instruction list while the token is not equal to newline
+                while (tok := self._next_token()) != "\n":
+                    instruction.append(tok)
+
+                self._instructions.append(instruction)
