@@ -39,3 +39,14 @@ class Label(Token):
     Acts exactly the same way the token does,
     Just a little bit special
     """
+
+
+class InstructionSet:
+    instruction_set: dict[str, int] = {}
+
+    # load the instructions set
+    with open("mqis", "r") as file:
+        # go through each line and yes
+        for idx, line in enumerate(file):
+            if line != "\n":
+                instruction_set[line[:-1]] = idx
