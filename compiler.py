@@ -38,6 +38,10 @@ class Compiler(InstructionSet):
             return None
         return self._token_tree[self._token_ptr]
 
+    @staticmethod
+    def _generate_macro_name(macro: Token, argn: int):
+        return f"{macro.token}_{argn}"
+
     def _precompile(self):
         """
         Goes through all the tokens, and assembles them.
@@ -52,7 +56,6 @@ class Compiler(InstructionSet):
         while (token := self._next_token()) is not None:
             # skip token lists
             if isinstance(token, list):
-                print(token)
                 continue
 
             # macro keyword
@@ -96,12 +99,14 @@ class Compiler(InstructionSet):
                 )
                 macro_body = macro_precompiler._instructions
 
+                # generate macro name
+                macro_name = self._generate_macro_name(macro_name, len(macro_args))
+
                 # append new macro
-                if macro_name.token not in self._macros:
-                    self._macros[macro_name.token] = []
-                self._macros[macro_name.token].append(
+                if macro_name not in self._macros:
+                    self._macros[macro_name] = []
+                self._macros[macro_name].append(
                     {
-                        "argn": len(macro_args),
                         "args": macro_args,
                         "body": macro_body
                     }
