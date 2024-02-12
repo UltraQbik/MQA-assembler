@@ -24,6 +24,14 @@ class Compiler(InstructionSet):
         self._precompile()
 
     @property
+    def macros(self) -> dict[str, list[dict]]:
+        return self._macros
+
+    @property
+    def instructions(self) -> list[list[Token] | Label]:
+        return self._instructions
+
+    @property
     def traceback(self) -> int:
         return self._traceback
 
@@ -37,10 +45,6 @@ class Compiler(InstructionSet):
         if self._token_ptr >= len(self._token_tree):
             return None
         return self._token_tree[self._token_ptr]
-
-    @staticmethod
-    def _generate_macro_name(macro: Token, argn: int):
-        return f"{macro.token}_{argn}"
 
     def _precompile(self):
         """
@@ -97,20 +101,24 @@ class Compiler(InstructionSet):
                     macros=self._macros,
                     instructions=self._instructions
                 )
-                macro_body = macro_precompiler._instructions
-
-                # generate macro name
-                macro_name = self._generate_macro_name(macro_name, len(macro_args))
+                macro_body = macro_precompiler.instructions
 
                 # append new macro
-                if macro_name not in self._macros:
-                    self._macros[macro_name] = []
-                self._macros[macro_name].append(
+                if macro_name.token not in self._macros:
+                    self._macros[macro_name.token] = []
+                self._macros[macro_name.token].append(
                     {
+                        "argn": len(macro_args),
                         "args": macro_args,
                         "body": macro_body
                     }
                 )
+
+                # merge macros
+                for key, item in macro_precompiler.macros.items():
+                    if key in self._macros:
+                        raise RecursionError("Circular macro")
+                    self._macros[key] = item
 
             # instructions and macros
             elif token.token in self.instruction_set or token.token in self._macros:
