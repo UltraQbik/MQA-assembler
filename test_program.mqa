@@ -19,6 +19,9 @@ macro macro_add(arg1, arg2) {
 ; This is a nested macro
 macro nested_1(arg1, arg2) {
     macro nested_2(arg1, arg2) {
+        macro nested_3(arg1, arg2) {
+            RET 2
+        }
         RET 1
     }
     RET 0
