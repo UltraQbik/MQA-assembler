@@ -3,24 +3,29 @@ from asm_types import Token
 
 
 class Tokenizer:
-    def __init__(self):
+    def __init__(self, code: str):
         """
         The main tokenizer class.
         It spits the code into tokens
         """
 
-        self.code: str | None = None
-        self.token_tree: list[Token | Any] | None = None
+        # code string and token tree
+        self._code: str = code
+        self._token_tree: list[Token | Any] | None = None
 
-    def tokenize(self, code: str):
+        # tokenize the code
+        self._tokenize()
+
+    @property
+    def token_tree(self) -> list[Token | Any]:
+        return self._token_tree
+
+    def _tokenize(self):
         """
         Spaghetti code that assembles the code!
         I know it's stupid, but I don't know how to make it better
-        :param code: Mini Quantum Assembly code
         :return: none
         """
-
-        self.code = code
 
         # separate the code into tokens
         self._separate_tokens()
@@ -32,7 +37,7 @@ class Tokenizer:
         self._remove_newlines()
 
         # create a token tree
-        self.token_tree = self._build_token_tree(self.token_tree)
+        self._token_tree = self._build_token_tree(self._token_tree)
 
     def _separate_tokens(self):
         """
@@ -44,14 +49,14 @@ class Tokenizer:
         token = ""
 
         # initialize token list
-        self.token_tree = []
+        self._token_tree = []
 
         # initialize character pointer to 0
         char_ptr = 0
         code_line = 1
-        while char_ptr < len(self.code):
+        while char_ptr < len(self._code):
             # get next character
-            char = self.code[char_ptr]
+            char = self._code[char_ptr]
             char_ptr += 1
 
             # code line
@@ -60,21 +65,21 @@ class Tokenizer:
 
             # spaces between things
             if char == " " and token != "":
-                self.token_tree.append(Token(token, code_line))
+                self._token_tree.append(Token(token, code_line))
                 token = ""
 
             # new lines
             elif char in "\n," and token != "":
-                self.token_tree.append(Token(token, code_line))
-                self.token_tree.append(Token(char, code_line))
+                self._token_tree.append(Token(token, code_line))
+                self._token_tree.append(Token(char, code_line))
                 token = ""
 
             # brackets
             elif char in "({[]})":
                 if token != "":
-                    self.token_tree.append(Token(token, code_line))
+                    self._token_tree.append(Token(token, code_line))
                     token = ""
-                self.token_tree.append(Token(char, code_line))
+                self._token_tree.append(Token(char, code_line))
 
             # anything else
             elif char != " " and char != "\n":
@@ -82,8 +87,8 @@ class Tokenizer:
 
         # if there is still a token at the end of the file
         if token:
-            self.token_tree.append(Token(token, code_line))
-            self.token_tree.append(Token("\n", code_line))
+            self._token_tree.append(Token(token, code_line))
+            self._token_tree.append(Token("\n", code_line))
 
     def _delete_comments(self):
         """
@@ -94,7 +99,7 @@ class Tokenizer:
         # create new token list
         new_token_list = []
         commented = False
-        for token in self.token_tree:
+        for token in self._token_tree:
             # deletus everything after the ';'
             if token == ";":
                 commented = True
@@ -109,7 +114,7 @@ class Tokenizer:
                 new_token_list.append(token)
 
         # yes
-        self.token_tree = new_token_list
+        self._token_tree = new_token_list
 
     def _build_token_tree(self, token_list: list[Token]):
         """
@@ -168,10 +173,10 @@ class Tokenizer:
 
         # set index to 0
         index = 0
-        while index < len(self.token_tree)-1:
+        while index < len(self._token_tree)-1:
             # if there are 2 newlines in a row, delete the first one
-            if self.token_tree[index] == "\n" and self.token_tree[index + 1] == "\n":
-                self.token_tree.pop(index)
+            if self._token_tree[index] == "\n" and self._token_tree[index + 1] == "\n":
+                self._token_tree.pop(index)
 
             # otherwise go to the next index
             else:

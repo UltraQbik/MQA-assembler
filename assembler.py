@@ -57,7 +57,7 @@ class Assembler:
 
 
 class Precompiler(InstructionSet):
-    def __init__(self, token_tree: list[Token | list]):
+    def __init__(self, token_tree: list[Token | list], **kwargs):
         # token tree
         self._token_tree: list[Token | list] = token_tree
 
@@ -65,19 +65,18 @@ class Precompiler(InstructionSet):
         self._token_ptr: int = -1
 
         # macros and instruction list
-        self._macros: dict[str, list[dict]] | None = None
-        self._instructions: list[list[Token] | Label] | None = None
+        self.macros: dict[str, list[dict]] | None = None
+        self.instructions: list[list[Token] | Label] | None = None
 
         # traceback
         self._traceback: int = 0
 
-    @property
-    def macros(self) -> dict[str, list[dict]]:
-        return self._macros
+        # set the kwargs
+        for arg, val in kwargs.items():
+            setattr(self, arg, val)
 
-    @property
-    def instructions(self) -> list[list[Token] | Label]:
-        return self._instructions
+        # precompile the given token tree
+        self._precompile()
 
     @property
     def traceback(self) -> int:
@@ -94,17 +93,6 @@ class Precompiler(InstructionSet):
             return None
         return self._token_tree[self._token_ptr]
 
-    def _precompile_ex(self):
-        """
-        Precompiles the token tree
-        :return: none
-        """
-
-        try:
-            self._precompile()
-        except Exception as exc:
-            print(f"An exception have occurred;\n\t{exc} at line: {self._traceback}")
-
     def _precompile(self):
         """
         Goes through all the tokens, and assembles them.
@@ -113,12 +101,13 @@ class Precompiler(InstructionSet):
         """
 
         # reset things
-        self._instructions: list[list[Token] | Label] = []
-        self._macros: dict[str, list[dict]] = {}
+        self.instructions: list[list[Token] | Label] = []
+        self.macros: dict[str, list[dict]] = {}
 
         while (token := self._next_token()) is not None:
             # skip token lists
             if isinstance(token, list):
+                print(token)
                 continue
 
             # macro keyword
@@ -132,7 +121,7 @@ class Precompiler(InstructionSet):
                     raise SyntaxError("Invalid syntax")
 
                 # warning when macro name is the same as the name of one of the instructions
-                if macro_name in self.instruction_set:
+                if macro_name.token in self.instruction_set:
                     print(f"warn: macro '{macro_name}' has the same name as one of the instruction")
 
                 # next token should be an argument list
@@ -154,10 +143,18 @@ class Precompiler(InstructionSet):
                     self._traceback = token.traceback
                     raise SyntaxError("Invalid syntax")
 
+                # precompile the macro body
+                macro_precompiler = Precompiler(
+                    token_tree=macro_body,
+                    macros=self.macros,
+                    instructions=self.instructions
+                )
+                macro_body = macro_precompiler.instructions
+
                 # append new macro
-                if macro_name.token not in self._macros:
-                    self._macros[macro_name.token] = []
-                self._macros[macro_name.token].append(
+                if macro_name.token not in self.macros:
+                    self.macros[macro_name.token] = []
+                self.macros[macro_name.token].append(
                     {
                         "argn": len(macro_args),
                         "args": macro_args,
@@ -166,7 +163,7 @@ class Precompiler(InstructionSet):
                 )
 
             # instructions and macros
-            elif token.token in self.instruction_set or token.token in self._macros:
+            elif token.token in self.instruction_set or token.token in self.macros:
                 # empty instruction list
                 instruction = list()
 
@@ -177,8 +174,8 @@ class Precompiler(InstructionSet):
                 while (tok := self._next_token()) != "\n":
                     instruction.append(tok)
 
-                self._instructions.append(instruction)
+                self.instructions.append(instruction)
 
             # labels
             elif token.token[-1] == ":":
-                self._instructions.append(Label(token.token[:-1], token.traceback))
+                self.instructions.append(Label(token.token[:-1], token.traceback))
