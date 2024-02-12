@@ -15,7 +15,7 @@ def print_recursive(token_list: list[Token | list], nesting: int = 0):
 
 def main():
     tokenizer = Tokenizer()
-    with open("test_program.mqa", "r") as file:
+    with open("mandelbrot_set.mqa", "r") as file:
         tokenizer.tokenize(file.read())
 
     asm = Assembler(tokenizer.token_tree)

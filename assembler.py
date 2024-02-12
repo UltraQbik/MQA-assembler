@@ -168,3 +168,13 @@ class Assembler:
             # labels
             elif token.token[-1] == ":":
                 self._instructions.append(Label(token.token[:-1], 0))
+
+    def _compile_and_link(self):
+        """
+        Function that compiles and links things together ~~forever~~
+        :return: none
+        """
+
+        self._reset_instruction_pointer()
+        while (instruction := self._next_instruction()) is not None:
+            pass
