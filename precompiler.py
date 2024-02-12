@@ -1,7 +1,7 @@
 from asm_types import Token, Label, InstructionSet
 
 
-class Compiler(InstructionSet):
+class Precompiler(InstructionSet):
     def __init__(self, token_tree: list[Token | list], **kwargs):
         # token tree
         self._token_tree: list[Token | list] = token_tree
@@ -12,6 +12,7 @@ class Compiler(InstructionSet):
         # macros and instruction list
         self._macros: dict[str, list[dict]] | None = None
         self._instructions: list[list[Token] | Label] | None = None
+        self._labels: dict[str, int] | None = None
 
         # traceback
         self._traceback: int = 0
@@ -30,6 +31,10 @@ class Compiler(InstructionSet):
     @property
     def instructions(self) -> list[list[Token] | Label]:
         return self._instructions
+
+    @property
+    def labels(self) -> dict[str, int]:
+        return self._labels
 
     @property
     def traceback(self) -> int:
@@ -96,7 +101,7 @@ class Compiler(InstructionSet):
                     raise SyntaxError("Invalid syntax")
 
                 # precompile the macro body
-                macro_precompiler = Compiler(
+                macro_precompiler = Precompiler(
                     token_tree=macro_body,
                     macros=self._macros,
                     instructions=self._instructions
@@ -117,8 +122,16 @@ class Compiler(InstructionSet):
                 # merge macros
                 for key, item in macro_precompiler.macros.items():
                     if key in self._macros:
+                        self._traceback = token.traceback
                         raise RecursionError("Circular macro")
                     self._macros[key] = item
+
+                # merge labels
+                for key, item in macro_precompiler.labels.items():
+                    if key in self._labels:
+                        self._traceback = token.traceback
+                        print(f"warn: redefining the label at {self._traceback}")
+                    self._labels[key] = item
 
             # instructions and macros
             elif token.token in self.instruction_set or token.token in self._macros:
