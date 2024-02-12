@@ -27,6 +27,12 @@ macro nested_1(arg1, arg2) {
     RET 0
 }
 
+; This is a macro with a label inside
+macro labeled(arg) {
+good:
+    JMP $good
+}
+
 
 ; this is a start header, the place where your program starts
 _start:

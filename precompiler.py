@@ -6,16 +6,15 @@ class Precompiler(InstructionSet):
         # token tree
         self._token_tree: list[Token | list] = token_tree
 
-        # token pointer
-        self._token_ptr: int = -1
-
         # macros and instruction list
         self._macros: dict[str, list[dict]] | None = None
         self._instructions: list[list[Token] | Label] | None = None
-        self._labels: dict[str, int] | None = None
 
         # traceback
         self._traceback: int = 0
+
+        # token pointer
+        self._token_ptr: int = -1
 
         # set the kwargs
         setattr(self, "_macros", kwargs.get("macros"))
@@ -31,10 +30,6 @@ class Precompiler(InstructionSet):
     @property
     def instructions(self) -> list[list[Token] | Label]:
         return self._instructions
-
-    @property
-    def labels(self) -> dict[str, int]:
-        return self._labels
 
     @property
     def traceback(self) -> int:
@@ -54,7 +49,7 @@ class Precompiler(InstructionSet):
     def _precompile(self):
         """
         Goes through all the tokens, and assembles them.
-        Creates macros, puts all the instructions, labels and macros into self._instructions
+        Creates macros and instructions
         :return: none
         """
 
@@ -125,13 +120,6 @@ class Precompiler(InstructionSet):
                         self._traceback = token.traceback
                         raise RecursionError("Circular macro")
                     self._macros[key] = item
-
-                # merge labels
-                for key, item in macro_precompiler.labels.items():
-                    if key in self._labels:
-                        self._traceback = token.traceback
-                        print(f"warn: redefining the label at {self._traceback}")
-                    self._labels[key] = item
 
             # instructions and macros
             elif token.token in self.instruction_set or token.token in self._macros:
