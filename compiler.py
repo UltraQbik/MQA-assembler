@@ -1,62 +1,7 @@
 from asm_types import Token, Label, InstructionSet
 
 
-class Assembler:
-    def __init__(self, token_tree):
-        self._token_tree: list[Token | list] = token_tree
-
-        # pointer to the current token
-        self._token_ptr: int = -1
-
-        # pointer to the current instruction
-        self._instruction_ptr: int = -1
-
-        # jump / call labels
-        self._labels: dict[str, int] | None = None
-
-        # exceptions traceback
-        self._traceback: int = 0
-
-    # def _compile_and_link(self):
-    #     """
-    #     Function that compiles and links things together ~~forever~~
-    #     :return: none
-    #     """
-    #
-    #     # clear labels
-    #     self._labels: dict[str, int] = {}
-    #
-    #     self._reset_instruction_pointer()
-    #     while (instruction := self._next_instruction()) is not None:
-    #         # skip labels for now
-    #         if isinstance(instruction, Label):
-    #             continue
-    #
-    #         # macros
-    #         if instruction[0] in self._macros:
-    #             macro_name = instruction[0]
-    #             macro_argn = len(instruction[1])
-    #
-    #             # search for the macro with the same amount of arguments
-    #             macro_body = None
-    #             for macro in self._macros[macro_name.token]:
-    #                 if macro["argn"] == macro_argn:
-    #                     macro_body = macro["body"]
-    #                     break
-    #
-    #             # if that macro wasn't found => raise an error
-    #             if macro_body is None:
-    #                 self._traceback = macro_name.traceback
-    #                 raise TypeError(f"Incorrect amount of arguments for macro '{macro_name}'")
-    #
-    #     # # Labels
-    #     # self._reset_instruction_pointer()
-    #     # while (instruction := self._next_instruction()) is not None:
-    #     #     if isinstance(instruction, Label):
-    #     #         self._labels[instruction.token] = self._instruction_ptr
-
-
-class Precompiler(InstructionSet):
+class Compiler(InstructionSet):
     def __init__(self, token_tree: list[Token | list], **kwargs):
         # token tree
         self._token_tree: list[Token | list] = token_tree
@@ -65,15 +10,15 @@ class Precompiler(InstructionSet):
         self._token_ptr: int = -1
 
         # macros and instruction list
-        self.macros: dict[str, list[dict]] | None = None
-        self.instructions: list[list[Token] | Label] | None = None
+        self._macros: dict[str, list[dict]] | None = None
+        self._instructions: list[list[Token] | Label] | None = None
 
         # traceback
         self._traceback: int = 0
 
         # set the kwargs
-        for arg, val in kwargs.items():
-            setattr(self, arg, val)
+        setattr(self, "_macros", kwargs.get("macros"))
+        setattr(self, "_instructions", kwargs.get("instructions"))
 
         # precompile the given token tree
         self._precompile()
@@ -101,8 +46,8 @@ class Precompiler(InstructionSet):
         """
 
         # reset things
-        self.instructions: list[list[Token] | Label] = []
-        self.macros: dict[str, list[dict]] = {}
+        self._instructions: list[list[Token] | Label] = []
+        self._macros: dict[str, list[dict]] = {}
 
         while (token := self._next_token()) is not None:
             # skip token lists
@@ -144,17 +89,17 @@ class Precompiler(InstructionSet):
                     raise SyntaxError("Invalid syntax")
 
                 # precompile the macro body
-                macro_precompiler = Precompiler(
+                macro_precompiler = Compiler(
                     token_tree=macro_body,
-                    macros=self.macros,
-                    instructions=self.instructions
+                    macros=self._macros,
+                    instructions=self._instructions
                 )
-                macro_body = macro_precompiler.instructions
+                macro_body = macro_precompiler._instructions
 
                 # append new macro
-                if macro_name.token not in self.macros:
-                    self.macros[macro_name.token] = []
-                self.macros[macro_name.token].append(
+                if macro_name.token not in self._macros:
+                    self._macros[macro_name.token] = []
+                self._macros[macro_name.token].append(
                     {
                         "argn": len(macro_args),
                         "args": macro_args,
@@ -163,7 +108,7 @@ class Precompiler(InstructionSet):
                 )
 
             # instructions and macros
-            elif token.token in self.instruction_set or token.token in self.macros:
+            elif token.token in self.instruction_set or token.token in self._macros:
                 # empty instruction list
                 instruction = list()
 
@@ -174,8 +119,8 @@ class Precompiler(InstructionSet):
                 while (tok := self._next_token()) != "\n":
                     instruction.append(tok)
 
-                self.instructions.append(instruction)
+                self._instructions.append(instruction)
 
             # labels
             elif token.token[-1] == ":":
-                self.instructions.append(Label(token.token[:-1], token.traceback))
+                self._instructions.append(Label(token.token[:-1], token.traceback))

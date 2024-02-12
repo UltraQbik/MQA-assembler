@@ -1,5 +1,5 @@
 from tokenizer import Tokenizer
-from assembler import Assembler, Precompiler
+from compiler import Compiler
 from asm_types import Token
 
 
@@ -17,10 +17,10 @@ def main():
     with open("test_program.mqa", "r") as file:
         tokenizer = Tokenizer(file.read())
 
-    precompiler = Precompiler(tokenizer.token_tree)
+    compiler = Compiler(tokenizer.token_tree)
 
-    print(precompiler.macros)
-    print(precompiler.instructions)
+    print(compiler._macros)
+    print(compiler._instructions)
 
 
 if __name__ == '__main__':
