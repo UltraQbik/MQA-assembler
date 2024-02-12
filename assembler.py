@@ -24,6 +24,9 @@ class Assembler:
         self._instruction_set: dict[str, int] | None = None
         self._load_instruction_set()
 
+        # exceptions traceback
+        self._traceback: int = 0
+
     def _load_instruction_set(self):
         """
         Loads the MQ instruction set (MQIS)
@@ -88,7 +91,7 @@ class Assembler:
         try:
             self._precompile()
         except Exception as exc:
-            print(f"An exception have occurred;\n\t{exc}\nline: {self._next_token(0).traceback}")
+            print(f"An exception have occurred;\n\t{exc} at line: {self._traceback}")
 
     def _precompile(self):
         """
@@ -115,6 +118,7 @@ class Assembler:
 
                 # if it's not of type Token => raise an error
                 if not isinstance(macro_name, Token):
+                    self._traceback = token.traceback
                     raise SyntaxError("Invalid syntax")
 
                 # next token should be an argument list
@@ -122,6 +126,7 @@ class Assembler:
 
                 # if it's not of type list => raise an error
                 if not isinstance(macro_args, list):
+                    self._traceback = token.traceback
                     raise SyntaxError("Invalid syntax")
 
                 # delete the commas
@@ -132,6 +137,7 @@ class Assembler:
 
                 # if it's not of type list => raise an error
                 if not isinstance(macro_body, list):
+                    self._traceback = token.traceback
                     raise SyntaxError("Invalid syntax")
 
                 # append new macro
