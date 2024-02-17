@@ -28,10 +28,19 @@ macro nested_1(arg1, arg2) {
     RET 0
 }
 
+; The other nested macro
+macro nested_01() {
+    nested_02()
+}
+
+macro nested_02() {
+    nested_01()
+}
+
 ; This is a macro with a label inside
-macro labeled(arg) {
-good:
-    JMP $good
+macro for_loop() {
+loop:
+
 }
 
 
@@ -42,6 +51,8 @@ _start:
 
     ; Add $0 and 58 together and leave it in ACC
     macro_add($0, 58)
+
+    for_loop()
 
     ; End program
     JMP $_end

@@ -7,7 +7,10 @@ class Compiler(InstructionSet):
         # macros and instruction list
         self._macros: dict[str, list[dict]] = macros
         self._instructions: list[list[Token | list] | Label] = instructions
+
+        # compiled stuff
         self._new_instructions: list[list[Token | list] | Label] = []
+        self._labels: dict[str, int] = {}
 
         # instruction pointer
         self._instruction_ptr: int = -1
@@ -57,6 +60,7 @@ class Compiler(InstructionSet):
         :return: none
         """
 
+        self._instruction_ptr = -1
         while (instruction := self._next_instruction()) is not None:
             # skip labels (will be done later)
             if isinstance(instruction, Label):
@@ -98,3 +102,25 @@ class Compiler(InstructionSet):
             # keyword instructions (LRA, SRA, JMP, etc.)
             elif instruction[0].token in self.instruction_set:
                 self._new_instructions += instruction
+
+        # transfer new instructions to instructions
+        self._instructions = self._new_instructions
+
+        # generate labels
+        self._make_labels()
+
+    def _make_labels(self):
+        """
+        Creates all the labels for the code
+        :return:
+        """
+
+        label_offset = 0
+        self._instruction_ptr = -1
+        while (instruction := self._next_instruction()) is not None:
+            # skit everything that is not a label
+            if not isinstance(instruction, Label):
+                continue
+
+            self._labels[instruction.token] = self._instruction_ptr - label_offset
+            label_offset += 1
