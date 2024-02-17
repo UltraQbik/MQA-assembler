@@ -23,6 +23,7 @@ def main():
 
     print(comp._macros)
     print(comp._instructions)
+    print(comp._new_instructions)
 
 
 if __name__ == '__main__':

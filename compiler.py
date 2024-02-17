@@ -7,6 +7,7 @@ class Compiler(InstructionSet):
         # macros and instruction list
         self._macros: dict[str, list[dict]] = macros
         self._instructions: list[list[Token | list] | Label] = instructions
+        self._new_instructions: list[list[Token | list] | Label] = []
 
         # instruction pointer
         self._instruction_ptr: int = -1
@@ -59,9 +60,11 @@ class Compiler(InstructionSet):
         while (instruction := self._next_instruction()) is not None:
             # skip labels (will be done later)
             if isinstance(instruction, Label):
+                self._new_instructions.append(instruction)
                 continue
 
             if isinstance(instruction[0], list):
+                self._new_instructions.append(instruction)
                 continue
 
             # macro
@@ -89,17 +92,9 @@ class Compiler(InstructionSet):
                         index = macro["args"].index(token.token)
                         macro_instruction[idx] = macro_args[index]
 
-                # NOTE: this part may be very bug prone
-                # it may be much easier to generate a completely new list of instructions?
-                # delete current instruction
-                self._instructions.pop(self._instruction_ptr)
+                # append instructions of macro to the list of compiled ish instructions
+                self._new_instructions += macro_body
 
-                # reverse the macro body instructions (because they will be inserted)
-                macro_body.reverse()
-
-                # append new instruction
-                for macro_instruction in macro_body:
-                    self._instructions.insert(self._instruction_ptr, macro_instruction)
-
-                # increment the instruction pointer
-                self._instruction_ptr += len(macro_body) - 1
+            # keyword instructions (LRA, SRA, JMP, etc.)
+            elif instruction[0].token in self.instruction_set:
+                self._new_instructions += instruction
