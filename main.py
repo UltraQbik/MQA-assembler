@@ -1,5 +1,6 @@
 from tokenizer import Tokenizer
 from precompiler import Precompiler
+from compiler import Compiler
 from asm_types import Token
 
 
@@ -18,9 +19,10 @@ def main():
         tokenizer = Tokenizer(file.read())
 
     precomp = Precompiler(tokenizer.token_tree)
+    comp = Compiler(precomp.instructions, precomp.macros)
 
-    print(precomp.macros)
-    print(precomp.instructions)
+    print(comp._macros)
+    print(comp._instructions)
 
 
 if __name__ == '__main__':

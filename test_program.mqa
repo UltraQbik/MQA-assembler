@@ -17,6 +17,7 @@ macro macro_add(arg1, arg2) {
 }
 
 ; This is a nested macro
+; it exists, but has no reason to :/
 macro nested_1(arg1, arg2) {
     macro nested_2(arg1, arg2) {
         macro nested_3(arg1, arg2) {

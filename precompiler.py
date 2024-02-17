@@ -103,16 +103,34 @@ class Precompiler(InstructionSet):
                 )
                 macro_body = macro_precompiler.instructions
 
+                macro_index = -1
                 # append new macro
                 if macro_name.token not in self._macros:
                     self._macros[macro_name.token] = []
-                self._macros[macro_name.token].append(
-                    {
-                        "argn": len(macro_args),
-                        "args": macro_args,
-                        "body": macro_body
-                    }
-                )
+
+                # check if it's not the same exact macro
+                else:
+                    for idx, macro in enumerate(self._macros[macro_name.token]):
+                        if macro["argn"] == len(macro_args):
+                            self._traceback = token.traceback
+                            print(f"info: redefining macro at line {self.traceback}")
+                            macro_index = idx
+                            break
+
+                # when macro is new and unique
+                if macro_index == -1:
+                    self._macros[macro_name.token].append(
+                        {
+                            "argn": len(macro_args),
+                            "args": macro_args,
+                            "body": macro_body
+                        }
+                    )
+
+                # when macro is being redefined
+                else:
+                    self._macros[macro_name.token][macro_index]["args"] = macro_args
+                    self._macros[macro_name.token][macro_index]["body"] = macro_body
 
                 # merge macros
                 for key, item in macro_precompiler.macros.items():
