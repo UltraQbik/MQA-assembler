@@ -1,3 +1,4 @@
+import copy
 from asm_types import Token, Label, InstructionSet
 
 
@@ -10,8 +11,15 @@ class Compiler(InstructionSet):
         # instruction pointer
         self._instruction_ptr: int = -1
 
+        # traceback
+        self._traceback: int = 0
+
         # compile
         self._compile()
+
+    @property
+    def traceback(self) -> int:
+        return self._traceback
 
     def _next_instruction(self) -> list[Token | list] | Label | None:
         """
@@ -24,13 +32,23 @@ class Compiler(InstructionSet):
             return None
         return self._instructions[self._instruction_ptr]
 
-    def _get_macro(self, name: str, argn: int):
+    def _get_macro(self, name: str, argn: int) -> dict | None:
         """
         Gets the macro by name and the argument number (argn)
-        :return: dictionary containing the macro
+        :return: dictionary containing the macro, or None if nothing was found
         """
 
-        pass
+        # if the macro doesn't exist
+        if name not in self._macros:
+            return None
+
+        # go through all macros, and compare the argn numbers
+        for macro in self._macros[name]:
+            if macro["argn"] == argn:
+                return macro
+
+        # if macro was not found with that amount of arguments
+        return None
 
     def _compile(self):
         """
@@ -56,5 +74,32 @@ class Compiler(InstructionSet):
 
                 macro_args = [x for x in macro_args if x != ","]
 
-                print(macro_args)
+                macro = self._get_macro(instruction[0].token, len(macro_args))
 
+                if macro is None:
+                    self._traceback = instruction[0].traceback
+                    raise TypeError("Too many arguments")
+
+                macro_body = copy.deepcopy(macro["body"])
+                for macro_instruction in macro_body:
+                    for idx, token in enumerate(macro_instruction):
+                        if token.token not in macro["args"]:
+                            continue
+
+                        index = macro["args"].index(token.token)
+                        macro_instruction[idx] = macro_args[index]
+
+                # NOTE: this part may be very bug prone
+                # it may be much easier to generate a completely new list of instructions?
+                # delete current instruction
+                self._instructions.pop(self._instruction_ptr)
+
+                # reverse the macro body instructions (because they will be inserted)
+                macro_body.reverse()
+
+                # append new instruction
+                for macro_instruction in macro_body:
+                    self._instructions.insert(self._instruction_ptr, macro_instruction)
+
+                # increment the instruction pointer
+                self._instruction_ptr += len(macro_body) - 1
