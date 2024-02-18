@@ -1,126 +1,105 @@
-import copy
 from asm_types import Token, Label, InstructionSet
+from typing import Any
 
 
 class Compiler(InstructionSet):
-    def __init__(self, instructions, macros):
-        # macros and instruction list
-        self._macros: dict[str, list[dict]] = macros
-        self._instructions: list[list[Token | list] | Label] = instructions
+    def __init__(self):
+        self.macros: dict[str, list[dict[str, Any]]] = {}
 
-        # compiled stuff
-        self._new_instructions: list[list[Token | list] | Label] = []
-        self._labels: dict[str, int] = {}
-
-        # instruction pointer
-        self._instruction_ptr: int = -1
-
-        # traceback
-        self._traceback: int = 0
-
-        # compile
-        self._compile()
-
-    @property
-    def traceback(self) -> int:
-        return self._traceback
-
-    def _next_instruction(self) -> list[Token | list] | Label | None:
+    def macro_unique(self, name: Token | str, argn: int):
         """
-        Returns the next instruction or None if the end of the instruction list is reached
-        :return: next instruction or none
+        :return: true if macro is unique, false if macro is not unique
         """
 
-        self._instruction_ptr += 1
-        if self._instruction_ptr >= len(self._instructions):
-            return None
-        return self._instructions[self._instruction_ptr]
+        if isinstance(name, Token):
+            name = name.token
+        if name in self.macros:
+            for macro in self.macros[name]:
+                if argn == macro["argn"]:
+                    return False
+        return True
 
-    def _get_macro(self, name: str, argn: int) -> dict | None:
+    def append_macro(self, name: Token | str, args: list[Token], body: list[list[Token] | Label]):
         """
-        Gets the macro by name and the argument number (argn)
-        :return: dictionary containing the macro, or None if nothing was found
-        """
-
-        # if the macro doesn't exist
-        if name not in self._macros:
-            return None
-
-        # go through all macros, and compare the argn numbers
-        for macro in self._macros[name]:
-            if macro["argn"] == argn:
-                return macro
-
-        # if macro was not found with that amount of arguments
-        return None
-
-    def _compile(self):
-        """
-        The main thing that compiles the code together
-        :return: none
+        Appends a new macro, if and only if it is a unique one
         """
 
-        self._instruction_ptr = -1
-        while (instruction := self._next_instruction()) is not None:
-            # skip labels (will be done later)
-            if isinstance(instruction, Label):
-                self._new_instructions.append(instruction)
+        if isinstance(name, Token):
+            name = name.token
+        if name in self.macros:
+            for macro in self.macros[name]:
+                if len(args) == macro["argn"]:
+                    macro["args"] = args
+                    macro["body"] = body
+                    return
+        else:
+            self.macros[name] = []
+        self.macros[name].append({
+                "argn": len(args),
+                "args": args,
+                "body": body
+            }
+        )
+
+    def precompile(self, token_tree: list[Token | list]):
+        """
+        Precompiler method
+        :param token_tree: tree of tokens
+        :return: precompiled list of instructions
+        """
+
+        instruction_list: list[list[Token] | Label] = []
+
+        # braindead coding :sunglasses:
+        dummy = [-1]
+
+        def next_token() -> Token | list | None:
+            dummy[0] += 1
+            if dummy[0] >= len(token_tree):
+                return None
+            return token_tree[dummy[0]]
+
+        # make macros, labels and instruction words
+        while (token := next_token()) is not None:
+            if isinstance(token, list):
                 continue
 
-            if isinstance(instruction[0], list):
-                self._new_instructions.append(instruction)
-                continue
+            # macros
+            if token == "macro":
+                macro_name = next_token()
+                if not isinstance(macro_name, Token):
+                    raise SyntaxError("incorrect macro name")
 
-            # macro
-            if instruction[0].token in self._macros:
-                macro_args = instruction[1]
-
+                macro_args = next_token()
                 if not isinstance(macro_args, list):
-                    self._traceback = instruction[0].traceback
-                    raise SyntaxError("Invalid syntax")
-
+                    raise SyntaxError("expected an argument list")
                 macro_args = [x for x in macro_args if x != ","]
 
-                macro = self._get_macro(instruction[0].token, len(macro_args))
+                macro_body = next_token()
+                if not isinstance(macro_body, list):
+                    raise SyntaxError("expected a '{'")
 
-                if macro is None:
-                    self._traceback = instruction[0].traceback
-                    raise TypeError("Too many arguments")
+                macro_compiler = Compiler()
+                macro_body = macro_compiler.precompile(macro_body)
+                self.append_macro(macro_name, macro_args, macro_body)
 
-                macro_body = copy.deepcopy(macro["body"])
-                for macro_instruction in macro_body:
-                    for idx, token in enumerate(macro_instruction):
-                        if token.token not in macro["args"]:
-                            continue
+                for name, macro in macro_compiler.macros.items():
+                    for overload_macro in macro:
+                        if not self.macro_unique(name, overload_macro["argn"]):
+                            raise Exception("cyclic macro")
+                        self.append_macro(name, overload_macro["args"], overload_macro["body"])
 
-                        index = macro["args"].index(token.token)
-                        macro_instruction[idx] = macro_args[index]
+            # instructions
+            elif token.token in self.instruction_set:
+                instruction_word = [token]
+                while (tok := next_token()) != "\n":
+                    instruction_word.append(tok)
+                instruction_list.append(instruction_word)
 
-                # append instructions of macro to the list of compiled ish instructions
-                self._new_instructions += macro_body
+            # labels
+            elif token.token[-1] == ":":
+                instruction_list.append(
+                    Label(token.token[:-1], token.traceback)
+                )
 
-            # keyword instructions (LRA, SRA, JMP, etc.)
-            elif instruction[0].token in self.instruction_set:
-                self._new_instructions += instruction
-
-        # transfer new instructions to instructions
-        self._instructions = self._new_instructions
-
-        # generate labels
-        self._make_labels()
-
-    def _make_labels(self):
-        """
-        Creates all the labels for the code
-        :return:
-        """
-
-        label_offset = 0
-        self._instruction_ptr = -1
-        while (instruction := self._next_instruction()) is not None:
-            # skit everything that is not a label
-            if not isinstance(instruction, Label):
-                continue
-
-            self._labels[instruction.token] = self._instruction_ptr - label_offset
-            label_offset += 1
+        return instruction_list

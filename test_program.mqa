@@ -38,9 +38,9 @@ macro nested_02() {
 }
 
 ; This is a macro with a label inside
-macro for_loop() {
+macro for_loop(a) {
 loop:
-
+    JMP $loop
 }
 
 
@@ -52,7 +52,8 @@ _start:
     ; Add $0 and 58 together and leave it in ACC
     macro_add($0, 58)
 
-    for_loop()
+    CCF
+    for_loop(1)
 
     ; End program
     JMP $_end
