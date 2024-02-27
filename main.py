@@ -1,5 +1,5 @@
 from tokenizer import Tokenizer
-from compiler1 import Compiler
+from compiler import Compiler
 from asm_types import Token
 
 
