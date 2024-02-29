@@ -1,12 +1,13 @@
 from asm_types import Token, Label, InstructionSet
 from typing import Any
+from copy import deepcopy
 
 
 class Compiler(InstructionSet):
     def __init__(self):
         self.macros: dict[str, list[dict[str, Any]]] = {}
 
-    def macro_unique(self, name: Token | str, argn: int):
+    def macro_unique(self, name: Token | str, argn: int) -> bool:
         """
         :return: true if macro is unique, false if macro is not unique
         """
@@ -19,7 +20,7 @@ class Compiler(InstructionSet):
                     return False
         return True
 
-    def append_macro(self, name: Token | str, args: list[Token], body: list[list[Token] | Label]):
+    def append_macro(self, name: Token | str, args: list[Token], body: list[list[Token] | Label]) -> None:
         """
         Appends a new macro, if and only if it is a unique one
         """
@@ -41,6 +42,27 @@ class Compiler(InstructionSet):
             }
         )
 
+    def get_macro(self, name: Token | str, argn: int, copy=True) -> dict:
+        """
+        Returns macro body with the given name and the amount of arguments
+        :param name: macro name
+        :param argn: number of arguments the macro has
+        :param copy: if the macro is a copy. Default=True
+        :return: macro body
+        """
+
+        if isinstance(name, Token):
+            name = name.token
+
+        if name in self.macros:
+            for macro in self.macros[name]:
+                if argn == macro["argn"]:
+                    if copy:
+                        return deepcopy(macro)
+                    else:
+                        return macro
+
+
     def precompile(self, token_tree: list[Token | list]):
         """
         Precompiler method
@@ -59,7 +81,7 @@ class Compiler(InstructionSet):
                 return None
             return token_tree[dummy[0]]
 
-        # make macros, labels and instruction words
+        # go through tokens to define all macros first (to not cause any errors)
         while (token := next_token()) is not None:
             if isinstance(token, list):
                 continue
@@ -89,12 +111,48 @@ class Compiler(InstructionSet):
                             raise Exception("cyclic macro")
                         self.append_macro(name, overload_macro["args"], overload_macro["body"])
 
+        # reset the token pointer
+        dummy[0] = -1
+
+        # make macros, labels and instruction words
+        while (token := next_token()) is not None:
+            if isinstance(token, list):
+                continue
+
+            # skip macro definitions
+            if token == "macro":
+                next_token()
+                next_token()
+                next_token()
+                continue
+
             # instructions
-            elif token.token in self.instruction_set:
+            if token.token in self.instruction_set:
                 instruction_word = [token]
                 while (tok := next_token()) != "\n":
                     instruction_word.append(tok)
                 instruction_list.append(instruction_word)
+
+            elif token.token in self.macros:
+                macro_name = token.token
+
+                macro_args = next_token()
+                if not isinstance(macro_args, list):
+                    raise SyntaxError("Incorrect syntax")
+                macro_args = [x for x in macro_args if x != ","]
+
+                # replace default macro arguments to ones passed into macro
+                macro = self.get_macro(macro_name, len(macro_args))
+                for instruction in macro["body"]:
+                    if isinstance(instruction, Label):
+                        continue
+                    for token_idx, tok in enumerate(instruction):
+                        for arg_idx, arg in enumerate(macro["args"]):
+                            if tok == arg:
+                                instruction[token_idx] = macro_args[arg_idx]
+
+                # append macro body to the instruction list
+                instruction_list += macro["body"]
 
             # labels
             elif token.token[-1] == ":":
