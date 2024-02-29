@@ -132,15 +132,20 @@ class Compiler(InstructionSet):
                     instruction_word.append(tok)
                 instruction_list.append(instruction_word)
 
+            # macros
             elif token.token in self.macros:
+                # macro name
                 macro_name = token.token
+
+                # list of arguments to the macro
                 macro_args = next_token()
                 if not isinstance(macro_args, list):
                     raise SyntaxError()
                 macro_args = [x for x in macro_args if x != ","]
 
+                # get the macro and append it to the list of instructions
                 macro = self.get_macro(macro_name, len(macro_args))
-                print(macro.put_args(*macro_args).body)
+                instruction_list.append(macro.put_args(*macro_args))
 
             # labels
             elif token.token[-1] == ":":
