@@ -143,8 +143,14 @@ class Compiler(InstructionSet):
 
                 # replace default macro arguments to ones passed into macro
                 macro = self.get_macro(macro_name, len(macro_args))
-                for instruction in macro["body"]:
+                for instruction_idx, instruction in enumerate(macro["body"]):
+                    # name mangle the macro labels to avoid thinking about actually local labels
+                    # also make it contain ' ', so the user cannot accidentally create macro with that name :)
                     if isinstance(instruction, Label):
+                        macro["body"][instruction_idx] = Label(
+                            f"{macro_name} {instruction.token}",
+                            instruction.traceback
+                        )
                         continue
                     for token_idx, tok in enumerate(instruction):
                         for arg_idx, arg in enumerate(macro["args"]):
