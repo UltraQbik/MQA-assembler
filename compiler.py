@@ -1,6 +1,5 @@
 from asm_types import *
 from typing import Any
-from copy import copy
 
 
 class Compiler(InstructionSet):
@@ -16,7 +15,7 @@ class Compiler(InstructionSet):
             name = name.token
         if name in self.macros:
             for macro in self.macros[name]:
-                if argn == macro["argn"]:
+                if argn == macro.argn:
                     return False
         return True
 
@@ -59,7 +58,7 @@ class Compiler(InstructionSet):
             for macro in self.macros[name]:
                 if argn == macro.argn:
                     if copy:
-                        return copy(macro)
+                        return macro.__copy__()
                     else:
                         return macro
 
@@ -132,6 +131,16 @@ class Compiler(InstructionSet):
                 while (tok := next_token()) != "\n":
                     instruction_word.append(tok)
                 instruction_list.append(instruction_word)
+
+            elif token.token in self.macros:
+                macro_name = token.token
+                macro_args = next_token()
+                if not isinstance(macro_args, list):
+                    raise SyntaxError()
+                macro_args = [x for x in macro_args if x != ","]
+
+                macro = self.get_macro(macro_name, len(macro_args))
+                print(macro.put_args(*macro_args).body)
 
             # labels
             elif token.token[-1] == ":":

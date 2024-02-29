@@ -63,11 +63,16 @@ class Macro:
             raise TypeError()
 
         for instruction in self.body:
-            for token_idx, tok in instruction:
-                for arg_idx, arg in self.args:
+            if isinstance(instruction, (Label, Macro)):
+                continue
+            for token_idx, tok in enumerate(instruction):
+                for arg_idx, arg in enumerate(self.args):
                     if tok == arg:
                         instruction[token_idx] = args[arg_idx]
         return self
+
+    def __copy__(self):
+        return Macro(self.name, self.args, self.body)
 
     def __repr__(self):
         return f"{{{self.name}({self.args})}}"
