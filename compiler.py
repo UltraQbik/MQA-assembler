@@ -62,7 +62,7 @@ class Compiler(InstructionSet):
                     else:
                         return macro
 
-    def compile(self, token_tree: list[Token | list]):
+    def compile(self, token_tree: list[Token | list]) -> list[list[Token] | Label | Macro]:
         """
         Precompiler method
         :param token_tree: tree of tokens
@@ -152,5 +152,28 @@ class Compiler(InstructionSet):
                 instruction_list.append(
                     Label(token.token[:-1], token.traceback)
                 )
+
+        instruction_list = self._make_macros(instruction_list)
+
+        return instruction_list
+
+    def _make_macros(self, instruction_list: list[list[Token] | Label | Macro]) -> list[list[Token] | Label | Macro]:
+        """
+        Compilation step which will make the macros
+        :param instruction_list:
+        :return:
+        """
+
+        # instruction counter
+        dummy = [-1]
+
+        def next_instruction() -> list[Token] | Label | Macro | None:
+            dummy[0] += 1
+            if dummy[0] >= len(instruction_list):
+                return None
+            return instruction_list[dummy[0]]
+
+        while (instruction := next_instruction()) is not None:
+            print(instruction)
 
         return instruction_list
