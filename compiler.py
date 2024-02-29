@@ -1,11 +1,11 @@
-from asm_types import Token, Label, InstructionSet
+from asm_types import *
 from typing import Any
-from copy import deepcopy
+from copy import copy
 
 
 class Compiler(InstructionSet):
     def __init__(self):
-        self.macros: dict[str, list[dict[str, Any]]] = {}
+        self.macros: dict[str, list[Macro]] = {}
 
     def macro_unique(self, name: Token | str, argn: int) -> bool:
         """
@@ -29,20 +29,21 @@ class Compiler(InstructionSet):
             name = name.token
         if name in self.macros:
             for macro in self.macros[name]:
-                if len(args) == macro["argn"]:
-                    macro["args"] = args
-                    macro["body"] = body
+                if len(args) == macro.argn:
+                    macro.args = args
+                    macro.body = body
                     return
         else:
             self.macros[name] = []
-        self.macros[name].append({
-                "argn": len(args),
-                "args": args,
-                "body": body
-            }
+        self.macros[name].append(
+            Macro(
+                name=name,
+                args=args,
+                body=body
+            )
         )
 
-    def get_macro(self, name: Token | str, argn: int, copy=True) -> dict:
+    def get_macro(self, name: Token | str, argn: int, copy=True) -> Macro:
         """
         Returns macro body with the given name and the amount of arguments
         :param name: macro name
@@ -56,12 +57,11 @@ class Compiler(InstructionSet):
 
         if name in self.macros:
             for macro in self.macros[name]:
-                if argn == macro["argn"]:
+                if argn == macro.argn:
                     if copy:
-                        return deepcopy(macro)
+                        return copy(macro)
                     else:
                         return macro
-
 
     def precompile(self, token_tree: list[Token | list]):
         """
@@ -70,7 +70,7 @@ class Compiler(InstructionSet):
         :return: precompiled list of instructions
         """
 
-        instruction_list: list[list[Token] | Label] = []
+        instruction_list: list[list[Token] | Label | Macro] = []
 
         # braindead coding :sunglasses:
         dummy = [-1]
@@ -107,9 +107,9 @@ class Compiler(InstructionSet):
 
                 for name, macro in macro_compiler.macros.items():
                     for overload_macro in macro:
-                        if not self.macro_unique(name, overload_macro["argn"]):
+                        if not self.macro_unique(name, overload_macro.argn):
                             raise Exception("cyclic macro")
-                        self.append_macro(name, overload_macro["args"], overload_macro["body"])
+                        self.append_macro(name, overload_macro.args, overload_macro.body)
 
         # reset the token pointer
         dummy[0] = -1
@@ -132,33 +132,6 @@ class Compiler(InstructionSet):
                 while (tok := next_token()) != "\n":
                     instruction_word.append(tok)
                 instruction_list.append(instruction_word)
-
-            elif token.token in self.macros:
-                macro_name = token.token
-
-                macro_args = next_token()
-                if not isinstance(macro_args, list):
-                    raise SyntaxError("Incorrect syntax")
-                macro_args = [x for x in macro_args if x != ","]
-
-                # replace default macro arguments to ones passed into macro
-                macro = self.get_macro(macro_name, len(macro_args))
-                for instruction_idx, instruction in enumerate(macro["body"]):
-                    # name mangle the macro labels to avoid thinking about actually local labels
-                    # also make it contain ' ', so the user cannot accidentally create macro with that name :)
-                    if isinstance(instruction, Label):
-                        macro["body"][instruction_idx] = Label(
-                            f"{macro_name} {instruction.token}",
-                            instruction.traceback
-                        )
-                        continue
-                    for token_idx, tok in enumerate(instruction):
-                        for arg_idx, arg in enumerate(macro["args"]):
-                            if tok == arg:
-                                instruction[token_idx] = macro_args[arg_idx]
-
-                # append macro body to the instruction list
-                instruction_list += macro["body"]
 
             # labels
             elif token.token[-1] == ":":

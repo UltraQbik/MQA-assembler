@@ -41,6 +41,20 @@ class Label(Token):
     """
 
 
+class Macro:
+    """
+    Macro token, used in precompilation
+    """
+    def __init__(self, name: str, args: list[str | Token], body: list):
+        self.name = name
+        self.args = [x for x in args if x != ","]
+        self.argn = len(self.args)
+        self.body = body
+
+    def __repr__(self):
+        return f"{{{self.name}({self.args})}}"
+
+
 class InstructionSet:
     instruction_set: dict[str, int] = {}
 
