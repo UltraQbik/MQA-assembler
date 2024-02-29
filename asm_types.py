@@ -51,7 +51,7 @@ class Macro:
         self.argn: int = len(self.args)
         self.body: list[list[Token] | Label | Macro] = body
 
-    def put_args(self, *args):
+    def put_args(self, *args: Token):
         """
         Puts the arguments in the corresponding places
         :param args: arguments to the macro
@@ -66,9 +66,13 @@ class Macro:
             if isinstance(instruction, (Label, Macro)):
                 continue
             for token_idx, tok in enumerate(instruction):
+                # the first token must be an instruction word
+                if token_idx == 0:
+                    continue
                 for arg_idx, arg in enumerate(self.args):
                     if tok == arg:
                         instruction[token_idx] = args[arg_idx]
+        self.args = args
         return self
 
     def __copy__(self):

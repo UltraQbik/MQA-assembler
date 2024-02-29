@@ -62,7 +62,7 @@ class Compiler(InstructionSet):
                     else:
                         return macro
 
-    def precompile(self, token_tree: list[Token | list]):
+    def compile(self, token_tree: list[Token | list]):
         """
         Precompiler method
         :param token_tree: tree of tokens
@@ -101,7 +101,7 @@ class Compiler(InstructionSet):
                     raise SyntaxError("expected a '{'")
 
                 macro_compiler = Compiler()
-                macro_body = macro_compiler.precompile(macro_body)
+                macro_body = macro_compiler.compile(macro_body)
                 self.append_macro(macro_name, macro_args, macro_body)
 
                 for name, macro in macro_compiler.macros.items():

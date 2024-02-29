@@ -19,7 +19,7 @@ def main():
 
     # print(tokenizer.token_tree)
     comp = Compiler()
-    print(comp.precompile(tokenizer.token_tree))
+    print(comp.compile(tokenizer.token_tree))
     print(comp.macros)
     # comp.precompile(tokenizer.token_tree)
 
