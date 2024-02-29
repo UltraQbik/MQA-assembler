@@ -45,11 +45,29 @@ class Macro:
     """
     Macro token, used in precompilation
     """
-    def __init__(self, name: str, args: list[str | Token], body: list):
-        self.name = name
-        self.args = [x for x in args if x != ","]
-        self.argn = len(self.args)
-        self.body = body
+    def __init__(self, name: str, args: list[Token], body: list):
+        self.name: str = name
+        self.args: list[Token] = [x for x in args if x != ","]
+        self.argn: int = len(self.args)
+        self.body: list[list[Token] | Label | Macro] = body
+
+    def put_args(self, *args):
+        """
+        Puts the arguments in the corresponding places
+        :param args: arguments to the macro
+        :returns: self
+        :raises TypeError: when the amount of arguments does not match
+        """
+
+        if len(args) != self.argn:
+            raise TypeError()
+
+        for instruction in self.body:
+            for token_idx, tok in instruction:
+                for arg_idx, arg in self.args:
+                    if tok == arg:
+                        instruction[token_idx] = args[arg_idx]
+        return self
 
     def __repr__(self):
         return f"{{{self.name}({self.args})}}"
