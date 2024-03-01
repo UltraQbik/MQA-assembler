@@ -145,35 +145,12 @@ class Compiler(InstructionSet):
 
                 # get the macro and append it to the list of instructions
                 macro = self.get_macro(macro_name, len(macro_args))
-                instruction_list.append(macro.put_args(*macro_args))
+                instruction_list += macro.put_args(*macro_args).body
 
             # labels
             elif token.token[-1] == ":":
                 instruction_list.append(
                     Label(token.token[:-1], token.traceback)
                 )
-
-        instruction_list = self._make_macros(instruction_list)
-
-        return instruction_list
-
-    def _make_macros(self, instruction_list: list[list[Token] | Label | Macro]) -> list[list[Token] | Label | Macro]:
-        """
-        Compilation step which will make the macros
-        :param instruction_list:
-        :return:
-        """
-
-        # instruction counter
-        dummy = [-1]
-
-        def next_instruction() -> list[Token] | Label | Macro | None:
-            dummy[0] += 1
-            if dummy[0] >= len(instruction_list):
-                return None
-            return instruction_list[dummy[0]]
-
-        while (instruction := next_instruction()) is not None:
-            print(instruction)
 
         return instruction_list
