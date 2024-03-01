@@ -145,7 +145,17 @@ class Compiler(InstructionSet):
 
                 # get the macro and append it to the list of instructions
                 macro = self.get_macro(macro_name, len(macro_args))
-                instruction_list += macro.put_args(*macro_args).body
+
+                # put arguments into the macro
+                macro.put_args(*macro_args)
+
+                # put label references
+                self._make_labels(macro.body)
+
+                # add macro body to the list of instructions
+                instruction_list += macro.body
+
+                # note: this code kind of stinks :(
 
             # labels
             elif token.token[-1] == ":":
@@ -153,11 +163,16 @@ class Compiler(InstructionSet):
                     Label(token.token[:-1], token.traceback)
                 )
 
-        self._make_labels(instruction_list)
-
         return instruction_list
 
-    def _make_labels(self, instruction_list: list[list[Token] | Label | Macro]):
+    @staticmethod
+    def _make_labels(instruction_list: list[list[Token] | Label | Macro]):
+        """
+        Modifies the list of instruction words
+        Creates labels, and moves their references to the correct places
+        :param instruction_list:
+        """
+
         labels: dict[str, Label] = dict()
 
         # instruction pointer
@@ -190,6 +205,7 @@ class Compiler(InstructionSet):
             if isinstance(instruction, Label):
                 continue
 
+            # iterate through instruction tokens and replace each $label with reference to the label
             for token_idx, token in enumerate(instruction):
                 if token.token[1:] in labels:
                     instruction[token_idx] = labels[token.token[1:]]
