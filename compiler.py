@@ -153,4 +153,43 @@ class Compiler(InstructionSet):
                     Label(token.token[:-1], token.traceback)
                 )
 
+        self._make_labels(instruction_list)
+
         return instruction_list
+
+    def _make_labels(self, instruction_list: list[list[Token] | Label | Macro]):
+        labels: dict[str, Label] = dict()
+
+        # instruction pointer
+        dummy = [-1]
+
+        # function that will retrieve the next instruction for the list of instructions
+        def next_instruction() -> list[Token] | Label | Macro | None:
+            dummy[0] += 1
+            if dummy[0] >= len(instruction_list):
+                return None
+            return instruction_list[dummy[0]]
+
+        # create labels
+        while (instruction := next_instruction()) is not None:
+            # skip other instruction words
+            if not isinstance(instruction, Label):
+                continue
+
+            # labels
+            if instruction.token not in labels:
+                # add the Label itself (same label, not a copy of it)
+                labels[instruction.token] = instruction
+
+        # reset the instruction pointer
+        dummy[0] = -1
+
+        # put the labels in correct places
+        while (instruction := next_instruction()) is not None:
+            # skip other instruction words
+            if isinstance(instruction, Label):
+                continue
+
+            for token_idx, token in enumerate(instruction):
+                if token.token[1:] in labels:
+                    instruction[token_idx] = labels[token.token[1:]]
