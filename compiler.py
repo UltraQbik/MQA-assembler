@@ -62,9 +62,56 @@ class Compiler(InstructionSet):
                     else:
                         return macro
 
+    @staticmethod
+    def make_labels(instruction_list: list[list[Token] | Label | Macro]):
+        """
+        Modifies the list of instruction words
+        Creates labels, and moves their references to the correct places
+        :param instruction_list: list of instructions
+        """
+
+        labels: dict[str, Label] = dict()
+
+        # instruction pointer
+        dummy = [-1]
+
+        # function that will retrieve the next instruction for the list of instructions
+        def next_instruction() -> list[Token] | Label | Macro | None:
+            dummy[0] += 1
+            if dummy[0] >= len(instruction_list):
+                return None
+            return instruction_list[dummy[0]]
+
+        # create labels
+        while (instruction := next_instruction()) is not None:
+            # skip other instruction words
+            if not isinstance(instruction, Label):
+                continue
+
+            # labels
+            if instruction.token not in labels:
+                # add the Label itself (same label, not a copy of it)
+                labels[instruction.token] = instruction
+
+        # reset the instruction pointer
+        dummy[0] = -1
+
+        # put the labels in correct places
+        while (instruction := next_instruction()) is not None:
+            # skip non label instruction words
+            if isinstance(instruction, Label):
+                continue
+
+            # iterate through instruction tokens and replace each '$label' with reference to the label
+            for token_idx, token in enumerate(instruction):
+                if token.token[1:] in labels:
+                    instruction[token_idx] = labels[token.token[1:]]
+
     def compile(self, token_tree: list[Token | list]) -> list[list[Token] | Label | Macro]:
         """
-        Precompiler method
+        Compile method
+        It's called RECURSIVELY (I keep forgetting about that part)
+        This method is called on all scopes (main, or the macro scopes)
         :param token_tree: tree of tokens
         :return: precompiled list of instructions
         """
@@ -150,7 +197,7 @@ class Compiler(InstructionSet):
                 macro.put_args(*macro_args)
 
                 # put label references
-                self._make_labels(macro.body)
+                self.make_labels(macro.body)
 
                 # add macro body to the list of instructions
                 instruction_list += macro.body
@@ -164,48 +211,3 @@ class Compiler(InstructionSet):
                 )
 
         return instruction_list
-
-    @staticmethod
-    def _make_labels(instruction_list: list[list[Token] | Label | Macro]):
-        """
-        Modifies the list of instruction words
-        Creates labels, and moves their references to the correct places
-        :param instruction_list:
-        """
-
-        labels: dict[str, Label] = dict()
-
-        # instruction pointer
-        dummy = [-1]
-
-        # function that will retrieve the next instruction for the list of instructions
-        def next_instruction() -> list[Token] | Label | Macro | None:
-            dummy[0] += 1
-            if dummy[0] >= len(instruction_list):
-                return None
-            return instruction_list[dummy[0]]
-
-        # create labels
-        while (instruction := next_instruction()) is not None:
-            # skip other instruction words
-            if not isinstance(instruction, Label):
-                continue
-
-            # labels
-            if instruction.token not in labels:
-                # add the Label itself (same label, not a copy of it)
-                labels[instruction.token] = instruction
-
-        # reset the instruction pointer
-        dummy[0] = -1
-
-        # put the labels in correct places
-        while (instruction := next_instruction()) is not None:
-            # skip other instruction words
-            if isinstance(instruction, Label):
-                continue
-
-            # iterate through instruction tokens and replace each $label with reference to the label
-            for token_idx, token in enumerate(instruction):
-                if token.token[1:] in labels:
-                    instruction[token_idx] = labels[token.token[1:]]
