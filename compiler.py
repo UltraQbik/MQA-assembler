@@ -63,7 +63,7 @@ class Compiler(InstructionSet):
                         return macro
 
     @staticmethod
-    def make_labels(instruction_list: list[list[Token] | Label | Macro]):
+    def make_labels(instruction_list: list[list[Token] | Label]):
         """
         Modifies the list of instruction words
         Creates labels, and moves their references to the correct places
@@ -76,7 +76,7 @@ class Compiler(InstructionSet):
         dummy = [-1]
 
         # function that will retrieve the next instruction for the list of instructions
-        def next_instruction() -> list[Token] | Label | Macro | None:
+        def next_instruction() -> list[Token] | Label | None:
             dummy[0] += 1
             if dummy[0] >= len(instruction_list):
                 return None
@@ -98,7 +98,7 @@ class Compiler(InstructionSet):
 
         # put the labels in correct places
         while (instruction := next_instruction()) is not None:
-            # skip non label instruction words
+            # skip labels
             if isinstance(instruction, Label):
                 continue
 
@@ -107,16 +107,72 @@ class Compiler(InstructionSet):
                 if token.token[1:] in labels:
                     instruction[token_idx] = labels[token.token[1:]]
 
-    def compile(self, token_tree: list[Token | list]) -> list[list[Token] | Label | Macro]:
+    @staticmethod
+    def _compile_instructions(instruction_list: list[list[Token] | Label]):
+        """
+        Compile method, but on instruction words rather than the token tree
+        :param instruction_list: list of instructions
+        :return: list of instructions, but compiled
+        """
+
+        # new instruction list
+        new_instruction_list: list[list[Token] | Label] = []
+
+        # labels
+        labels: dict[int, int] = dict()
+
+        # instruction pointer
+        dummy = [-1]
+
+        # function that will retrieve the next instruction for the list of instructions
+        def next_instruction() -> list[Token] | Label | None:
+            dummy[0] += 1
+            if dummy[0] >= len(instruction_list):
+                return None
+            return instruction_list[dummy[0]]
+
+        # offset due to labels being removed
+        label_offset = 0
+
+        # go through all the instructions, and find all labels (yes, again)
+        while (instruction := next_instruction()) is not None:
+            # skip all non label instructions
+            if not isinstance(instruction, Label):
+                new_instruction_list.append(instruction)
+                continue
+
+            # labels
+            labels[id(instruction)] = dummy[0] - label_offset
+            label_offset += 1
+
+        # move the new instruction list to old one
+        instruction_list = new_instruction_list
+
+        # reset the instruction pointer
+        dummy[0] = -1
+
+        # replace references with addresses of where to jump
+        while (instruction := next_instruction()) is not None:
+            # loop through tokens in the instruction word
+            # there should be no Labels or Macros, so no additional checks needed
+            for token_idx, token in enumerate(instruction):
+                # we check if token is in labels (if it IS the same exact thing)
+                if id(token) in labels:
+                    instruction[token_idx] = labels[id(token)]
+
+        return new_instruction_list
+
+    def compile(self, token_tree: list[Token | list], _main_scope=True) -> list[list[Token] | Label]:
         """
         Compile method
         It's called RECURSIVELY (I keep forgetting about that part)
         This method is called on all scopes (main, or the macro scopes)
         :param token_tree: tree of tokens
+        :param _main_scope: if it's the main scope, or a macro scope (microscope hehe)
         :return: precompiled list of instructions
         """
 
-        instruction_list: list[list[Token] | Label | Macro] = []
+        instruction_list: list[list[Token] | Label] = []
 
         # braindead coding :sunglasses:
         dummy = [-1]
@@ -148,7 +204,7 @@ class Compiler(InstructionSet):
                     raise SyntaxError("expected a '{'")
 
                 macro_compiler = Compiler()
-                macro_body = macro_compiler.compile(macro_body)
+                macro_body = macro_compiler.compile(macro_body, False)
                 self.append_macro(macro_name, macro_args, macro_body)
 
                 for name, macro in macro_compiler.macros.items():
@@ -210,4 +266,11 @@ class Compiler(InstructionSet):
                     Label(token.token[:-1], token.traceback)
                 )
 
-        return instruction_list
+        # if we are in the main scope
+        if _main_scope:
+            self.make_labels(instruction_list)
+            return self._compile_instructions(instruction_list)
+
+        # if we are in the macro scope
+        else:
+            return instruction_list
