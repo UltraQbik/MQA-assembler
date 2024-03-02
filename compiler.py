@@ -134,7 +134,7 @@ class Compiler(InstructionSet):
         # offset due to labels being removed
         label_offset = 0
 
-        # go through all the instructions, and find all labels (yes, again)
+        # go through all the instructions, and find all labels
         while (instruction := next_instruction()) is not None:
             # skip all non label instructions
             if not isinstance(instruction, Label):
@@ -146,7 +146,7 @@ class Compiler(InstructionSet):
             label_offset += 1
 
         # move the new instruction list to old one
-        instruction_list = new_instruction_list
+        instruction_list: list[list[Token | Argument]] = new_instruction_list
 
         # reset the instruction pointer
         dummy[0] = -1
@@ -159,8 +159,19 @@ class Compiler(InstructionSet):
                 # we check if token is in labels (if it IS the same exact thing)
                 if id(token) in labels:
                     instruction[token_idx] = labels[id(token)]
+                    continue
 
-        return new_instruction_list
+                # skip mnemonics
+                if token_idx == 0:
+                    continue
+
+                # replace arguments
+                if token.token[0] == "$":
+                    instruction[token_idx] = Argument(int(token.token[1:]), AsmTypes.POINTER)
+                else:
+                    instruction[token_idx] = Argument(int(token.token), AsmTypes.INTEGER)
+
+        return instruction_list
 
     def compile(self, token_tree: list[Token | list], _main_scope=True) -> list[list[Token] | Label]:
         """

@@ -1,3 +1,23 @@
+from enum import Enum
+from typing import Any
+
+
+class AsmTypes(Enum):
+    INTEGER = 1
+    POINTER = 2
+
+
+class InstructionSet:
+    instruction_set: dict[str, int] = {}
+
+    # load the instructions set
+    with open("mqis", "r") as file:
+        # go through each line and yes
+        for idx, line in enumerate(file):
+            if line != "\n":
+                instruction_set[line[:-1]] = idx
+
+
 class Token:
     def __init__(self, token: str, code_line: int):
         """
@@ -82,12 +102,13 @@ class Macro:
         return f"{{{self.name}({self.args})}}"
 
 
-class InstructionSet:
-    instruction_set: dict[str, int] = {}
+class Argument:
+    def __init__(self, value: Any, type_: AsmTypes):
+        self.value = value
+        self.type = type_
 
-    # load the instructions set
-    with open("mqis", "r") as file:
-        # go through each line and yes
-        for idx, line in enumerate(file):
-            if line != "\n":
-                instruction_set[line[:-1]] = idx
+    def __repr__(self):
+        if self.type is AsmTypes.INTEGER:
+            return f"{self.value}"
+        elif self.type is AsmTypes.POINTER:
+            return f"${self.value}"
