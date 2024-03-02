@@ -169,7 +169,7 @@ class Compiler(InstructionSet):
         This method is called on all scopes (main, or the macro scopes)
         :param token_tree: tree of tokens
         :param _main_scope: if it's the main scope, or a macro scope (microscope hehe)
-        :return: precompiled list of instructions
+        :return: compiled list of instructions
         """
 
         instruction_list: list[list[Token] | Label] = []
