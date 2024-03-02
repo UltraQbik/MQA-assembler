@@ -1,12 +1,34 @@
+from tokenizer import Tokenizer
 from asm_types import *
-from typing import Any
 
 
 class Compiler(InstructionSet):
     def __init__(self):
         self.macros: dict[str, list[Macro]] = {}
 
-    def macro_unique(self, name: Token | str, argn: int) -> bool:
+        self.traceback: int = 0
+        self.traceback_name: str = ""
+
+    def compile(self, code: str):
+        """
+        Wrapper for the 'self._compile' method
+        :param code: code that needs compilation
+        :return:
+        """
+
+        # NOTE: this needs to be *changed*, as it's very odd to do it that way
+        tokenizer = Tokenizer(code)
+        token_tree = tokenizer.token_tree
+
+        try:
+            compiled = self._compile(token_tree)
+        except Exception as exc:
+            print(f"Compiler exited due to following error:\n"
+                  f"{type(exc).__name__}: {exc}; line {self.traceback} in '{self.traceback_name}'")
+            return None
+        return compiled
+
+    def is_macro_unique(self, name: Token | str, argn: int) -> bool:
         """
         :return: true if macro is unique, false if macro is not unique
         """
@@ -19,7 +41,32 @@ class Compiler(InstructionSet):
                     return False
         return True
 
-    def append_macro(self, name: Token | str, args: list[Token], body: list[list[Token] | Label]) -> None:
+    def get_macro(self, name: Token | str, argn: int, copy=True) -> Macro:
+        """
+        Returns macro body with the given name and the amount of arguments
+        :param name: macro name
+        :param argn: number of arguments the macro has
+        :param copy: if the macro is a copy. Default=True
+        :return: macro body
+        """
+
+        if isinstance(name, Token):
+            name = name.token
+
+        if name in self.macros:
+            for macro in self.macros[name]:
+                if argn == macro.argn:
+                    if copy:
+                        return macro.__copy__()
+                    else:
+                        return macro
+
+    def _raise_exception(self, exception: BaseException, traceback: int, name: str):
+        self.traceback = traceback
+        self.traceback_name = name
+        raise exception
+
+    def _append_macro(self, name: Token | str, args: list[Token], body: list[list[Token] | Label]) -> None:
         """
         Appends a new macro, if and only if it is a unique one
         """
@@ -42,28 +89,8 @@ class Compiler(InstructionSet):
             )
         )
 
-    def get_macro(self, name: Token | str, argn: int, copy=True) -> Macro:
-        """
-        Returns macro body with the given name and the amount of arguments
-        :param name: macro name
-        :param argn: number of arguments the macro has
-        :param copy: if the macro is a copy. Default=True
-        :return: macro body
-        """
-
-        if isinstance(name, Token):
-            name = name.token
-
-        if name in self.macros:
-            for macro in self.macros[name]:
-                if argn == macro.argn:
-                    if copy:
-                        return macro.__copy__()
-                    else:
-                        return macro
-
     @staticmethod
-    def make_labels(instruction_list: list[list[Token] | Label]):
+    def _make_labels(instruction_list: list[list[Token] | Label]):
         """
         Modifies the list of instruction words
         Creates labels, and moves their references to the correct places
@@ -107,8 +134,7 @@ class Compiler(InstructionSet):
                 if token.token[1:] in labels:
                     instruction[token_idx] = labels[token.token[1:]]
 
-    @staticmethod
-    def _compile_instructions(instruction_list: list[list[Token] | Label]):
+    def _compile_instructions(self, instruction_list: list[list[Token] | Label]):
         """
         Compile method, but on instruction words rather than the token tree
         :param instruction_list: list of instructions
@@ -166,20 +192,27 @@ class Compiler(InstructionSet):
                     continue
 
                 # replace arguments
-                if token.token[0] == "$":
-                    instruction[token_idx] = Argument(int(token.token[1:]), AsmTypes.POINTER)
-                else:
-                    instruction[token_idx] = Argument(int(token.token), AsmTypes.INTEGER)
+                try:
+                    if token.token[0] == "$":
+                        instruction[token_idx] = Argument(int(token.token[1:]), AsmTypes.POINTER)
+                    else:
+                        instruction[token_idx] = Argument(int(token.token), AsmTypes.INTEGER)
+                except ValueError as exc:
+                    self._raise_exception(
+                        exc,
+                        traceback=token.traceback,
+                        name="main"
+                    )
 
         return instruction_list
 
-    def compile(self, token_tree: list[Token | list], _main_scope=True) -> list[list[Token] | Label]:
+    def _compile(self, token_tree: list[Token | list], _scope="main") -> list[list[Token] | Label]:
         """
         Compile method
         It's called RECURSIVELY (I keep forgetting about that part)
         This method is called on all scopes (main, or the macro scopes)
         :param token_tree: tree of tokens
-        :param _main_scope: if it's the main scope, or a macro scope (microscope hehe)
+        :param _scope: if it's the main scope, or a macro scope (microscope hehe)
         :return: compiled list of instructions
         """
 
@@ -203,26 +236,38 @@ class Compiler(InstructionSet):
             if token == "macro":
                 macro_name = next_token()
                 if not isinstance(macro_name, Token):
-                    raise SyntaxError("incorrect macro name")
+                    self._raise_exception(
+                        SyntaxError(f"incorrect macro name '{macro_name}'"),
+                        traceback=token.traceback,
+                        name=_scope)
 
                 macro_args = next_token()
                 if not isinstance(macro_args, list):
-                    raise SyntaxError("expected an argument list")
+                    self._raise_exception(
+                        SyntaxError("expected an argument list"),
+                        traceback=token.traceback,
+                        name=_scope)
                 macro_args = [x for x in macro_args if x != ","]
 
                 macro_body = next_token()
                 if not isinstance(macro_body, list):
-                    raise SyntaxError("expected a '{'")
+                    self._raise_exception(
+                        SyntaxError("expected a '{'"),
+                        traceback=token.traceback,
+                        name=_scope)
 
                 macro_compiler = Compiler()
-                macro_body = macro_compiler.compile(macro_body, False)
-                self.append_macro(macro_name, macro_args, macro_body)
+                macro_body = macro_compiler._compile(macro_body, macro_name.token)
+                self._append_macro(macro_name, macro_args, macro_body)
 
                 for name, macro in macro_compiler.macros.items():
                     for overload_macro in macro:
-                        if not self.macro_unique(name, overload_macro.argn):
-                            raise Exception("cyclic macro")
-                        self.append_macro(name, overload_macro.args, overload_macro.body)
+                        if not self.is_macro_unique(name, overload_macro.argn):
+                            self._raise_exception(
+                                Exception("cyclic macro"),
+                                traceback=token.traceback,
+                                name=_scope)
+                        self._append_macro(name, overload_macro.args, overload_macro.body)
 
         # reset the token pointer
         dummy[0] = -1
@@ -264,7 +309,7 @@ class Compiler(InstructionSet):
                 macro.put_args(*macro_args)
 
                 # put label references
-                self.make_labels(macro.body)
+                self._make_labels(macro.body)
 
                 # add macro body to the list of instructions
                 instruction_list += macro.body
@@ -278,8 +323,8 @@ class Compiler(InstructionSet):
                 )
 
         # if we are in the main scope
-        if _main_scope:
-            self.make_labels(instruction_list)
+        if _scope == "main":
+            self._make_labels(instruction_list)
             return self._compile_instructions(instruction_list)
 
         # if we are in the macro scope

@@ -1,14 +1,15 @@
-from tokenizer import Tokenizer
 from compiler import Compiler
 
 
 def main():
     with open("test_program.mqa", "r") as file:
-        token_tree = Tokenizer(file.read()).token_tree
+        code = file.read()
 
     compiler = Compiler()
-    instruction_list = compiler.compile(token_tree)
+    instruction_list = compiler.compile(code)
 
+    if instruction_list is None:
+        exit(-1)
     for instruction in instruction_list:
         print(*instruction)
 
