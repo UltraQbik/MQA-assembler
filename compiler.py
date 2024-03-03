@@ -9,6 +9,20 @@ class Compiler(InstructionSet):
         self.traceback: int = 0
         self.traceback_name: str = ""
 
+    @staticmethod
+    def get_bytecode(instruction_list: list[list[Token | Argument]]):
+        """
+        Will convert the list of instructions to bytecode
+        :param instruction_list: list of instruction words
+        :return: bytes
+        """
+
+        for instruction in instruction_list:
+            print(instruction)
+
+        return bytes([1, 2, 3])
+
+
     def compile(self, code: str) -> list[list[Token | Argument]]:
         """
         Wrapper for the 'self._compile' method
@@ -28,7 +42,7 @@ class Compiler(InstructionSet):
             return None
         return compiled
 
-    def is_macro_unique(self, name: Token | str, argn: int) -> bool:
+    def _is_macro_unique(self, name: Token | str, argn: int) -> bool:
         """
         :return: true if macro is unique, false if macro is not unique
         """
@@ -41,7 +55,7 @@ class Compiler(InstructionSet):
                     return False
         return True
 
-    def get_macro(self, name: Token | str, argn: int, copy=True) -> Macro:
+    def _get_macro(self, name: Token | str, argn: int, copy=True) -> Macro:
         """
         Returns macro body with the given name and the amount of arguments
         :param name: macro name
@@ -62,6 +76,15 @@ class Compiler(InstructionSet):
                         return macro
 
     def _raise_exception(self, exception: BaseException, traceback: int, name: str):
+        """
+        Raises an exception
+        Sets the traceback and the name
+        :param exception: exception which will be raised
+        :param traceback: line traceback
+        :param name: scope traceback
+        :return:
+        """
+
         self.traceback = traceback
         self.traceback_name = name
         raise exception
@@ -262,7 +285,7 @@ class Compiler(InstructionSet):
 
                 for name, macro in macro_compiler.macros.items():
                     for overload_macro in macro:
-                        if not self.is_macro_unique(name, overload_macro.argn):
+                        if not self._is_macro_unique(name, overload_macro.argn):
                             self._raise_exception(
                                 Exception("cyclic macro"),
                                 traceback=token.traceback,
@@ -303,7 +326,7 @@ class Compiler(InstructionSet):
                 macro_args = [x for x in macro_args if x != ","]
 
                 # get the macro and append it to the list of instructions
-                macro = self.get_macro(macro_name, len(macro_args))
+                macro = self._get_macro(macro_name, len(macro_args))
 
                 # put arguments into the macro
                 macro.put_args(*macro_args)

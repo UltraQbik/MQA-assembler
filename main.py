@@ -38,12 +38,22 @@ def main():
     # file creation
     output_filename = args.output
     if output_filename is None:
-        output_filename = "compiled_" + args.input
+        # 'compiled_{file}'
+        output_filename = "compiled_" + os.path.splitext(os.path.basename(args.input))[0]
+
+        # if '--byte' is True, append '.mqa' to the end of the filename
+        if args.byte:
+            output_filename += ".mqa"
+
+        # else, append '.mqas' to the end of the filename
+        else:
+            output_filename += ".mqas"
 
     # bytecode file output (for the emulator)
     if args.byte:
-        # TODO: make a bytecode file output
-        die("Not Implemented")
+        # write bytes to a file
+        with open(output_filename, "wb") as file:
+            file.write(compiler.get_bytecode(instruction_list))
     else:
         # write instructions to a file
         with open(output_filename, "w", encoding="utf8") as file:
