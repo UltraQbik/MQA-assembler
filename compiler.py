@@ -9,7 +9,7 @@ class Compiler(InstructionSet):
         self.traceback: int = 0
         self.traceback_name: str = ""
 
-    def compile(self, code: str):
+    def compile(self, code: str) -> list[list[Token | Argument]]:
         """
         Wrapper for the 'self._compile' method
         :param code: code that needs compilation
@@ -134,7 +134,7 @@ class Compiler(InstructionSet):
                 if token.token[1:] in labels:
                     instruction[token_idx] = labels[token.token[1:]]
 
-    def _compile_instructions(self, instruction_list: list[list[Token] | Label]):
+    def _compile_instructions(self, instruction_list: list[list[Token] | Label]) -> list[list[Token | Argument]]:
         """
         Compile method, but on instruction words rather than the token tree
         :param instruction_list: list of instructions
@@ -206,7 +206,7 @@ class Compiler(InstructionSet):
 
         return instruction_list
 
-    def _compile(self, token_tree: list[Token | list], _scope="main") -> list[list[Token] | Label]:
+    def _compile(self, token_tree: list[Token | list], _scope="main") -> list[list[Token] | Label | Argument]:
         """
         Compile method
         It's called RECURSIVELY (I keep forgetting about that part)
