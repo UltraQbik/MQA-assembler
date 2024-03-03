@@ -9,19 +9,49 @@ class Compiler(InstructionSet):
         self.traceback: int = 0
         self.traceback_name: str = ""
 
-    @staticmethod
-    def get_bytecode(instruction_list: list[list[Token | Argument]]):
+    def get_bytecode(self, instruction_list: list[list[Token | Argument]]):
         """
         Will convert the list of instructions to bytecode
         :param instruction_list: list of instruction words
         :return: bytes
         """
 
+        # list of instruction bytes
+        new_instruction_list: bytes = bytes()
+
         for instruction in instruction_list:
-            print(instruction)
+            # decode the instruction
+            opcode = self.instruction_set[instruction[0].token]
 
-        return bytes([1, 2, 3])
+            # if the instruction has any arguments (ex. LRA 10, argument 10)
+            # decode data and memory_flag
+            if len(instruction) > 1:
+                data = instruction[1].value
+                memory_flag = 1 if instruction[1].type is AsmTypes.POINTER else 0
 
+            # else, data and memory_flag are 0
+            else:
+                data = 0
+                memory_flag = 0
+
+            # instruction consists of 3 parts
+            # memory_flag   - 1 bit
+            # data          - 8 bits
+            # opcode        - 7 bits
+            # ==========================
+            # total         - 16 bits
+
+            # make instruction one 16 bit value
+            value = (memory_flag << 15) + (data << 7) + opcode
+
+            # bytes are 8 bits, so, split the value into 2 bytes
+            value_high = (value & 0b1111_1111_0000_0000) >> 8
+            value_low = value & 0b0000_0000_1111_1111
+
+            # append 2 bytes to the list
+            new_instruction_list += bytes([value_high, value_low])
+
+        return new_instruction_list
 
     def compile(self, code: str) -> list[list[Token | Argument]]:
         """
@@ -207,7 +237,7 @@ class Compiler(InstructionSet):
             for token_idx, token in enumerate(instruction):
                 # we check if token is in labels (if it IS the same exact thing)
                 if id(token) in labels:
-                    instruction[token_idx] = labels[id(token)]
+                    instruction[token_idx] = Argument(labels[id(token)], AsmTypes.INTEGER)
                     continue
 
                 # skip mnemonics
