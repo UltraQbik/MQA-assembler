@@ -1,0 +1,21 @@
+_start:
+    LRA 0
+    SRA $0
+
+    LRA 1
+    SRA $1
+
+fib:
+    LRA $0
+    UO
+    ADD $1
+    JMPC $_end
+    SRA $0
+
+    SUB $1
+    SRA $1
+
+    JMP $fib
+
+_end:
+    HALT
