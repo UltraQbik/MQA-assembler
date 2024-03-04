@@ -3,19 +3,12 @@ from typing import Any
 
 
 class AsmTypes(Enum):
+    """
+    Argument (class) types
+    """
+
     INTEGER = 1
     POINTER = 2
-
-
-class InstructionSet:
-    instruction_set: dict[str, int] = {}
-
-    # load the instructions set
-    with open("mqis", "r") as file:
-        # go through each line and yes
-        for idx, line in enumerate(file):
-            if line != "\n":
-                instruction_set[line[:-1]] = idx
 
 
 class Token:
@@ -62,10 +55,14 @@ class Label(Token):
 
 
 class Macro:
-    """
-    Macro token, used in precompilation
-    """
     def __init__(self, name: str, args: list[Token], body: list):
+        """
+        Macro token, used in precompilation
+        :param name: name of the macro
+        :param args: arguments of the macro
+        :param body: instructions composing the macro
+        """
+
         self.name: str = name
         self.args: list[Token] = [x for x in args if x != ","]
         self.argn: int = len(self.args)
@@ -104,6 +101,12 @@ class Macro:
 
 class Argument:
     def __init__(self, value: Any, type_: AsmTypes):
+        """
+        Contains a value (anything), and type
+        :param value: argument value
+        :param type_: argument type
+        """
+
         self.value = value
         self.type = type_
 

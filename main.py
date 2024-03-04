@@ -1,6 +1,6 @@
 import os
 import argparse
-from compiler import Compiler
+from src import Compiler
 
 
 parser = argparse.ArgumentParser(description="Compiles Mini Quantum CPU source files.")

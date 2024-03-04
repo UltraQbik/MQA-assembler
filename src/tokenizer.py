@@ -1,5 +1,5 @@
+from .asm_types import Token
 from typing import Any
-from asm_types import Token
 
 
 class Tokenizer:

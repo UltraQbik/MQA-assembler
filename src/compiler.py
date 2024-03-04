@@ -1,9 +1,14 @@
-from tokenizer import Tokenizer
-from asm_types import *
+from .tokenizer import Tokenizer
+from .asm_types import *
+from .mqis import *
 
 
 class Compiler(InstructionSet):
     def __init__(self):
+        """
+        Main compiler class, which does all the compilation steps.
+        """
+
         self.macros: dict[str, list[Macro]] = {}
 
         self.traceback: int = 0
