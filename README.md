@@ -4,7 +4,7 @@ Mini Quantum - MQ - 8bit CPU that was made entirely in Scrap Mechanic, using van
 Information on MQ can be found on my discord servers:<br/>
 - [RU] ['MQ' discord forum post](https://discord.com/channels/863390692591665152/1119025865968341002)
 - [EN] ['MQ' discord forum post](https://discord.com/channels/860450204000059412/1204119619036516352)
-- [EN] ['MQ' discord forum post](https://discord.com/channels/860450204000059412/1204119619036516352) but from @codemaker4 discord server, and less maintained
+- [EN] ['MQ' discord forum post](https://discord.com/channels/532624495081422869/1171195234391167067) but from @codemaker4 discord server, and less maintained
 <br/>If you want just the instruction set go [here](https://docs.google.com/spreadsheets/d/1Sl82E1pRsVYuFbP9roWOJOsSJ4JLtFiOXaD3Rq9oaJI/edit#gid=0)
 <br/>If you want the computer check this [repository](https://github.com/UltraQbik/SMC-MQ-CPU)
 
