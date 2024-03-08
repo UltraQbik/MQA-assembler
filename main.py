@@ -1,14 +1,28 @@
 import os
 import argparse
-from src import Compiler
+from src import Compiler, Tokenizer
 
 
 parser = argparse.ArgumentParser(description="Compiles Mini Quantum CPU source files.")
 parser.add_argument("input", type=str, help="source file")
 parser.add_argument("-o", "--output", type=str, help="output file")
 parser.add_argument("--json", help="creates a blueprint for Scrap Mechanic", action="store_true")
-parser.add_argument("--byte", help="outputs the bytecode, executable for mqe", action="store_true")
+parser.add_argument("--no-byte", help="outputs the assembly code", action="store_true")
 args = parser.parse_args()
+
+
+def code_compile(code: str):
+    """
+    Compiles the given code.
+    :param code: code string
+    :return: instruction list
+    """
+
+    token_list = Tokenizer.tokenize(code)
+    token_tree = Tokenizer.build_token_tree(token_list)
+    instruction_list = Compiler.compile(token_tree)
+
+    return instruction_list
 
 
 def die(message=None):
@@ -30,10 +44,7 @@ def main():
         code = file.read()
 
     # compilation
-    compiler = Compiler()
-    instruction_list = compiler.compile(code)
-    if instruction_list is None:
-        die()
+    instruction_list = code_compile(code)
 
     # file creation
     output_filename = args.output
@@ -41,24 +52,24 @@ def main():
         # 'compiled_{file}'
         output_filename = "compiled_" + os.path.splitext(os.path.basename(args.input))[0]
 
-        # if '--byte' is True, append '.mqa' to the end of the filename
-        if args.byte:
-            output_filename += ".mqa"
-
-        # else, append '.mqas' to the end of the filename
-        else:
+        # if '--no-byte' is True, append '.mqas' to the end of the filename
+        if args.no_byte:
             output_filename += ".mqas"
 
+        # else, append '.mqa' to the end of the filename
+        else:
+            output_filename += ".mqa"
+
     # bytecode file output (for the emulator)
-    if args.byte:
-        # write bytes to a file
-        with open(output_filename, "wb") as file:
-            file.write(compiler.get_bytecode(instruction_list))
-    else:
+    if args.no_byte:
         # write instructions to a file
         with open(output_filename, "w", encoding="utf8") as file:
             for instruction in instruction_list:
                 file.write(" ".join([x.__str__() for x in instruction]) + "\n")
+    else:
+        # write bytes to a file
+        with open(output_filename, "wb") as file:
+            file.write(Compiler.get_bytecode(instruction_list))
 
 
 if __name__ == '__main__':
