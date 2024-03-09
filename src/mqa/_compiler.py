@@ -274,7 +274,10 @@ class Compiler(InstructionSet):
                             ])
                         # offset pointer by 1
                         instruction_ptr[0] += 1
+<<<<<<< HEAD
                         label_future_offset += 1
+=======
+>>>>>>> 82c29f4 (Change rom and cache pages (not yet accounting for labels))
 
                         # update current rom page
                         rom_page = new_rom_page
