@@ -234,6 +234,10 @@ class Compiler(InstructionSet):
                 instruction_list.pop(instruction_ptr[0])
                 instruction_ptr[0] -= 1
 
+        # cache and rom pages
+        cache_page = 0
+        rom_page = 0
+
         # reset instruction pointer
         instruction_ptr[0] = -1
 
@@ -246,15 +250,58 @@ class Compiler(InstructionSet):
 
                 # if it's a label pointer
                 if isinstance(token, Label):
-                    instruction[token_idx] = Argument(label_pointer[id(token)], AsmTypes.INTEGER)
+                    jump_index = label_pointer[id(token)]       # where we want to jump
+                    new_rom_page = jump_index >> 8             # the rom page in which the index is
+
+                    # check if the rom page is way too big still
+                    if new_rom_page > 255:
+                        raise Exception(f"The jump index '{token}' exceeds 64 KiB of ROM")
+
+                    # if the jump rom page is not the same as the current one => add CRP instruction
+                    if rom_page != new_rom_page:
+                        # insert an instruction that changes the rom page
+                        instruction_list.insert(
+                            instruction_ptr[0],
+                            [
+                                Token("CRP", token.traceback),
+                                Argument(new_rom_page, AsmTypes.INTEGER)
+                            ])
+                        # offset pointer by 1
+                        instruction_ptr[0] += 1
+
+                        # update current rom page
+                        rom_page = new_rom_page
+                    instruction[token_idx] = Argument(jump_index & 255, AsmTypes.INTEGER)
                     continue
 
                 # some kind of pointer
                 if token.token[0] == "$":
                     if token.token[1].isdigit():
-                        instruction[token_idx] = Argument(int(token.token[1:]), AsmTypes.POINTER)
+                        cache_address = int(token.token[1:], base=0)
+                        new_cache_page = cache_address >> 8
+
+                        # check if the new cache page is bigger than 64 KiB of cache
+                        if new_cache_page > 255:
+                            raise Exception(f"The address '{token}' exceeds 64 KiB of cache")
+
+                        # if new cache page is not the same as the current one => add CCP instruction
+                        if cache_page != new_cache_page:
+                            # insert an instruction that changes the cache page
+                            instruction_list.insert(
+                                instruction_ptr[0],
+                                [
+                                    Token("CCP", token.traceback),
+                                    Argument(new_cache_page, AsmTypes.INTEGER)
+                                ])
+                            # offset pointer by 1
+                            instruction_ptr[0] += 1
+
+                            # update current rom page
+                            rom_page = new_cache_page
+
+                        instruction[token_idx] = Argument(cache_address & 255, AsmTypes.POINTER)
                 else:
-                    instruction[token_idx] = Argument(int(token.token), AsmTypes.INTEGER)
+                    instruction[token_idx] = Argument(int(token.token, base=0) & 255, AsmTypes.INTEGER)
 
         return instruction_list
 

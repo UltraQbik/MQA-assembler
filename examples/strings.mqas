@@ -1,0 +1,47 @@
+; Simple string test
+
+macro sra(val, adr) {
+    ; Just stores a value
+    LRA val
+    SRA adr
+}
+
+macro print(char_ptr) {
+    ; Prints out null terminated string
+
+    LRA char_ptr
+    SRA $256
+
+loop:
+    LRA $256
+    LRP
+    JMPZ $end
+
+    UOC
+    LRA $256
+    INC
+    SRA $256
+    JMP $loop
+end:
+}
+
+_start:
+    ;  H   e    l    l    o        W   o    r    l    d    !
+    ; [72, 101, 108, 108, 111, 32, 87, 111, 114, 108, 100, 33]
+    sra(72, 0)
+    sra(101, 1)
+    sra(108, 2)
+    sra(108, 3)
+    sra(111, 4)
+    sra(32, 5)
+    sra(87, 6)
+    sra(111, 7)
+    sra(114, 8)
+    sra(108, 9)
+    sra(100, 10)
+    sra(33, 11)
+
+    ; Print out the string
+    print(0)
+_end:
+    HALT
