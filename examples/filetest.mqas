@@ -1,0 +1,123 @@
+; This is a simple filetest for MQA-emulator
+
+
+macro sra(val, adr) {
+    LRA val
+    SRA adr
+}
+
+macro file_read(ptr_high, ptr_low, size_high, size_low) {
+    ; load the FileManager call into 0 port
+    LRA 0
+    PRW 0
+
+    ; load file operation into port 1
+    LRA 0       ; to read
+    PRW 1
+
+    ; load writing pointer (low - 2, high - 3)
+    LRA ptr_low
+    PRW 2
+    LRA ptr_high
+    PRW 3
+
+    ; load the amount of data to read (low - 4, high - 5)
+    ; if it's a 0, then reads the entire file (as much as can fit)
+    LRA size_low
+    PRW 4
+    LRA size_high
+    PRW 5
+
+    ; process the interrupt
+    INT
+}
+
+macro file_write(ptr_high, ptr_low, size_high, size_low) {
+    ; load the FileManager call into 0 port
+    LRA 0
+    PRW 0
+
+    ; load file operation into port 1
+    LRA 1       ; to write
+    PRW 1
+
+    ; load writing pointer (low - 2, high - 3)
+    LRA ptr_low
+    PRW 2
+    LRA ptr_high
+    PRW 3
+
+    ; load the amount of data to write (low - 4, high - 5)
+    LRA size_low
+    PRW 4
+    LRA size_high
+    PRW 5
+
+    ; process the interrupt
+    INT
+}
+
+macro print(char_ptr) {
+    ; Prints out null terminated string
+
+    LRA char_ptr
+    SRA $255
+loop:
+    LRA $255
+    CCP 1
+    LRP
+    CCP 0
+    JMPZ $end
+
+    UOC
+    LRA $255
+    INC
+    SRA $255
+    JMP $loop
+end:
+}
+
+
+_start:
+    ; filepath always starts at 0
+    sra(82, 0)
+    sra(69, 1)
+    sra(65, 2)
+    sra(68, 3)
+    sra(77, 4)
+    sra(69, 5)
+    sra(46, 6)
+    sra(109, 7)
+    sra(100, 8)
+
+    ; write file into cache, at address 256 (why?)
+    file_read(1, 0, 0, 0)
+
+    ; print the file
+    print(0)
+
+    CCP 0
+    sra(100, 0)
+    sra(105, 1)
+    sra(102, 2)
+    sra(102, 3)
+    sra(101, 4)
+    sra(114, 5)
+    sra(101, 6)
+    sra(110, 7)
+    sra(116, 8)
+    sra(95, 9)
+    sra(102, 10)
+    sra(105, 11)
+    sra(108, 12)
+    sra(101, 13)
+    sra(46, 14)
+    sra(116, 15)
+    sra(120, 16)
+    sra(116, 17)
+
+    ; write first 10 bytes of the read file
+    file_write(1, 0, 0, 10)
+
+_end:
+    HALT
