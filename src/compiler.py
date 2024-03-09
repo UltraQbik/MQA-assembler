@@ -297,7 +297,7 @@ class Compiler(InstructionSet):
                             instruction_ptr[0] += 1
 
                             # update current rom page
-                            rom_page = new_cache_page
+                            cache_page = new_cache_page
 
                         instruction[token_idx] = Argument(cache_address & 255, AsmTypes.POINTER)
                 else:
