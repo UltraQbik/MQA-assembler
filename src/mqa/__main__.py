@@ -1,9 +1,9 @@
 import os
 import argparse
-from src import Compiler, Tokenizer
+from . import Compiler, Tokenizer
 
 
-parser = argparse.ArgumentParser(description="Compiles Mini Quantum CPU source files.")
+parser = argparse.ArgumentParser(prog="mqa", description="Compiles Mini Quantum CPU source files.")
 parser.add_argument("input", type=str, help="source file")
 parser.add_argument("-o", "--output", type=str, help="output file")
 parser.add_argument("--json", help="creates a blueprint for Scrap Mechanic", action="store_true")
