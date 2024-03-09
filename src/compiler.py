@@ -216,6 +216,7 @@ class Compiler(InstructionSet):
         # label pointers
         # label id -> label index in the instruction list
         label_pointer: dict[int, int] = {}
+        label_future_offset: int = 0
 
         # instruction pointer
         instruction_ptr = [-1]
@@ -251,7 +252,12 @@ class Compiler(InstructionSet):
                 # if it's a label pointer
                 if isinstance(token, Label):
                     jump_index = label_pointer[id(token)]       # where we want to jump
-                    new_rom_page = jump_index >> 8             # the rom page in which the index is
+
+                    # if the just index is further down than the current pointer points to
+                    if jump_index > instruction_ptr[0]:
+                        jump_index += label_future_offset
+
+                    new_rom_page = jump_index >> 8              # the rom page in which the index is
 
                     # check if the rom page is way too big still
                     if new_rom_page > 255:
@@ -268,6 +274,7 @@ class Compiler(InstructionSet):
                             ])
                         # offset pointer by 1
                         instruction_ptr[0] += 1
+                        label_future_offset += 1
 
                         # update current rom page
                         rom_page = new_rom_page
@@ -295,6 +302,7 @@ class Compiler(InstructionSet):
                                 ])
                             # offset pointer by 1
                             instruction_ptr[0] += 1
+                            label_future_offset += 1
 
                             # update current rom page
                             cache_page = new_cache_page
