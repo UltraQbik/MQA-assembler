@@ -19,6 +19,6 @@ No additional libraries required, it uses the default ones, preinstalled with py
 # Building
 1. python -m build
 2. pip install dist/\*.whl
-<br/>Now it's available through either mqa or python -m mqa
+<br/>Now can run it through either mqa or python -m mqa
 # Code examples
 Code examples are located in directory 'examples', there you will find some examples of assembly code written for MQ's
