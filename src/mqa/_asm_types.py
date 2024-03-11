@@ -54,6 +54,9 @@ class Label(Token):
     Just a little bit special
     """
 
+    def __repr__(self):
+        return f"${self.token}"
+
 
 class Macro:
     def __init__(self, name: str, args: list[Token], body: list):
