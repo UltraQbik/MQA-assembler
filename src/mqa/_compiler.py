@@ -304,7 +304,7 @@ class Compiler(InstructionSet):
             # any jump instruction
             elif instruction[0] in ["JMP", "JMPP", "JMPZ", "JMPN", "JMPC", "CALL"]:
                 # instructions that go to different address in ROM
-                new_rom_page = instruction[1].value >> 8
+                new_rom_page = labels[id(instruction[1].value)] >> 8
 
             # any other instruction
             else:
@@ -332,8 +332,8 @@ class Compiler(InstructionSet):
                 instruction_ptr[0] += 1
                 future_offset += 1
 
-            # if instruction has any arguments
-            if len(instruction) > 1:
+            # if instruction has any arguments & the arg is not a label
+            if len(instruction) > 1 and not isinstance(instruction[1].value, Label):
                 # fix it to 8bit integer
                 instruction[1].value = instruction[1].value & 255
 
