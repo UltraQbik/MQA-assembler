@@ -212,6 +212,8 @@ class Compiler(InstructionSet):
 
         cls.process_instructions(instruction_list)
 
+        return instruction_list
+
     @classmethod
     def process_instructions(cls, instruction_list: list[list[Token | Argument] | Label]):
         """
@@ -300,8 +302,11 @@ class Compiler(InstructionSet):
             # any jump instruction
             elif instruction[0] in ["JMP", "JMPP", "JMPZ", "JMPN", "JMPC", "CALL"]:
                 # instructions that go to different address in ROM
-                # new_rom_page = labels[id(instruction[1].value)] >> 8
-                pass
+                # NOTE: this most likely will not work in some cases
+                if isinstance(instruction[1].value, LabelPointer):
+                    new_rom_page = instruction[1].value.value >> 8
+                else:
+                    new_rom_page = instruction[1].value >> 8
 
             # any other instruction
             else:
@@ -345,9 +350,6 @@ class Compiler(InstructionSet):
 
         # reset instruction pointer
         instruction_ptr[0] = -1
-
-        while (instruction := next_instruction()) is not None:
-            print(instruction_ptr[0], instruction)
 
     @classmethod
     def get_bytecode(cls, instruction_list: list[list[Token | Argument]]) -> bytes:
