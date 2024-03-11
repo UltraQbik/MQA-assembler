@@ -233,7 +233,7 @@ class Compiler(InstructionSet):
             return instruction_list[instruction_ptr[0]]
 
         # inserts new instruction
-        def insert_instruction(idx: int, opcode: str, value, type_: AsmTypes):
+        def insert_instruction(idx: int, opcode: Token, value, type_: AsmTypes):
             instruction_list.insert(idx, [opcode, Argument(value, type_)])
 
         # labels
@@ -321,7 +321,10 @@ class Compiler(InstructionSet):
                     cache_page = new_cache_page
 
                     # insert instruction and account for it
-                    insert_instruction(instruction_ptr[0], "CCP", new_cache_page, AsmTypes.INTEGER)
+                    insert_instruction(
+                        instruction_ptr[0],
+                        Token("CCP", instruction[0].traceback),
+                        new_cache_page, AsmTypes.INTEGER)
 
                 # insert instruction if the rom_page != new_rom_page
                 if rom_page != new_rom_page:
@@ -329,7 +332,10 @@ class Compiler(InstructionSet):
                     rom_page = new_rom_page
 
                     # insert instruction and account for it
-                    insert_instruction(instruction_ptr[0], "CRP", new_cache_page, AsmTypes.INTEGER)
+                    insert_instruction(
+                        instruction_ptr[0],
+                        Token("CRP", instruction[0].traceback),
+                        new_cache_page, AsmTypes.INTEGER)
 
                 # update instruction pointer
                 instruction_ptr[0] += 1
@@ -348,8 +354,10 @@ class Compiler(InstructionSet):
                 # fix it to 8bit integer
                 instruction[1].value = instruction[1].value & 255
 
-        # reset instruction pointer
-        instruction_ptr[0] = -1
+        # replace label pointers with ints
+        for instruction in instruction_list:
+            if len(instruction) > 1 and isinstance(instruction[1].value, LabelPointer):
+                instruction[1].value = instruction[1].value.value
 
     @classmethod
     def get_bytecode(cls, instruction_list: list[list[Token | Argument]]) -> bytes:
