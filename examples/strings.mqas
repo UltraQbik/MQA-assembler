@@ -14,6 +14,7 @@ macro print(char_ptr) {
 
 loop:
     LRA $256
+    CCP 0
     LRP
     JMPZ $end
 

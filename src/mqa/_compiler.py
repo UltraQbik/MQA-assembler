@@ -355,7 +355,7 @@ class Compiler(InstructionSet):
                 instruction[1].value = instruction[1].value & 255
 
         # replace label pointers with ints
-        for instruction in instruction_list:
+        for idx, instruction in enumerate(instruction_list):
             if len(instruction) > 1 and isinstance(instruction[1].value, LabelPointer):
                 instruction[1].value = instruction[1].value.value
 
@@ -378,7 +378,7 @@ class Compiler(InstructionSet):
             # decode data and memory_flag
             if len(instruction) > 1:
                 data = instruction[1].value
-                if instruction[1].type is AsmTypes.POINTER or instruction[1].type is AsmTypes.NAMED:
+                if instruction[1].type is AsmTypes.POINTER:
                     memory_flag = 1
                 else:
                     memory_flag = 0

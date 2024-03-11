@@ -131,6 +131,6 @@ class Argument:
         if self.type is AsmTypes.INTEGER:
             return f"{self.value}"
         elif self.type is AsmTypes.POINTER:
-            return f"#${self.value}"
+            return f"${self.value}"
         elif self.type is AsmTypes.NAMED:
             return f"${self.value}"
