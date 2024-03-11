@@ -378,7 +378,10 @@ class Compiler(InstructionSet):
             # decode data and memory_flag
             if len(instruction) > 1:
                 data = instruction[1].value
-                memory_flag = 1 if instruction[1].type is AsmTypes.POINTER else 0
+                if instruction[1].type is AsmTypes.POINTER or instruction[1].type is AsmTypes.NAMED:
+                    memory_flag = 1
+                else:
+                    memory_flag = 0
 
             # else, data and memory_flag are 0
             else:
