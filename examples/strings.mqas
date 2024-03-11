@@ -10,10 +10,10 @@ macro print(char_ptr) {
     ; Prints out null terminated string
 
     LRA char_ptr
-    SRA $255
+    SRA $256
 
 loop:
-    LRA $255
+    LRA $256
     LRP
     JMPZ $end
 

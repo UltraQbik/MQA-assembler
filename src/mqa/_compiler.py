@@ -281,12 +281,66 @@ class Compiler(InstructionSet):
 
         # code pages
         cache_page = 0
+        new_cache_page = 0
         rom_page = 0
+        new_rom_page = 0
 
         # go through instruction and process arguments & check / insert instructions
         while (instruction := next_instruction()) is not None:
-            pass
+            # check mnemonics
+            # manual change cache page
+            if instruction[0] == "CCP":
+                # change cache page
+                cache_page = instruction[1].value
+                new_cache_page = cache_page
 
+            # manual change rom page
+            elif instruction[0] == "CRP":
+                # change rom page
+                rom_page = instruction[1].value
+                new_rom_page = rom_page
+
+            # any jump instruction
+            elif instruction[0] in ["JMP", "JMPP", "JMPZ", "JMPN", "JMPC", "CALL"]:
+                # instructions that go to different address in ROM
+                new_rom_page = instruction[1].value >> 8
+
+            # any other instruction
+            else:
+                # if instruction has any arguments
+                if len(instruction) > 1:
+                    new_cache_page = instruction[1].value >> 8
+
+            # insert instruction if the cache_page != new_cache_page
+            if cache_page != new_cache_page:
+                # update page
+                cache_page = new_cache_page
+
+                # insert instruction and account for it
+                insert_instruction(instruction_ptr[0], "CCP", new_cache_page, AsmTypes.INTEGER)
+                instruction_ptr[0] += 1
+                future_offset += 1
+
+            # insert instruction if the rom_page != new_rom_page
+            if rom_page != new_rom_page:
+                # update page
+                rom_page = new_rom_page
+
+                # insert instruction and account for it
+                insert_instruction(instruction_ptr[0], "CRP", new_cache_page, AsmTypes.INTEGER)
+                instruction_ptr[0] += 1
+                future_offset += 1
+
+            # if instruction has any arguments
+            if len(instruction) > 1:
+                # fix it to 8bit integer
+                instruction[1].value = instruction[1].value & 255
+
+        # reset instruction pointer
+        instruction_ptr[0] = -1
+
+        while (instruction := next_instruction()) is not None:
+            print(instruction)
 
         # # otherwise => final step of compilation
         # instruction_list: list[list[Token | Argument] | Label]
