@@ -18,9 +18,9 @@ loop:
     JMPZ $end
 
     UOC
-    LRA $255
+    LRA $256
     INC
-    SRA $255
+    SRA $256
     JMP $loop
 end:
 }

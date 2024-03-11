@@ -230,6 +230,10 @@ class Compiler(InstructionSet):
                 return None
             return instruction_list[instruction_ptr[0]]
 
+        # inserts new instruction
+        def insert_instruction(idx: int, opcode: str, value, type_: AsmTypes):
+            instruction_list.insert(idx, [opcode, Argument(value, type_)])
+
         # labels
         labels: dict[int, int] = {}
 
@@ -248,6 +252,7 @@ class Compiler(InstructionSet):
         instruction_ptr[0] = -1
 
         # go through instruction and process arguments
+        # integers here are not limited to 8 bits
         while (instruction := next_instruction()) is not None:
             # go through instruction arguments, and process them
             for token_idx, token in enumerate(instruction):
@@ -255,12 +260,12 @@ class Compiler(InstructionSet):
                 if token_idx == 0:
                     continue
 
-                # skip label pointers for now
+                # process labels
                 if isinstance(token, Label):
-                    continue
+                    instruction[token_idx] = Argument(labels[id(token)], AsmTypes.POINTER)
 
                 # if the token is a pointer
-                if token.token[0] == "$":
+                elif token.token[0] == "$":
                     # if it's a numeric pointer
                     instruction[token_idx] = Argument(int(token.token[1:], base=0), AsmTypes.POINTER)
 
@@ -268,7 +273,20 @@ class Compiler(InstructionSet):
                 else:
                     instruction[token_idx] = Argument(int(token.token, base=0), AsmTypes.INTEGER)
 
-            print(instruction)
+        # reset instruction pointer
+        instruction_ptr[0] = -1
+
+        # offset
+        future_offset = 0
+
+        # code pages
+        cache_page = 0
+        rom_page = 0
+
+        # go through instruction and process arguments & check / insert instructions
+        while (instruction := next_instruction()) is not None:
+            pass
+
 
         # # otherwise => final step of compilation
         # instruction_list: list[list[Token | Argument] | Label]
