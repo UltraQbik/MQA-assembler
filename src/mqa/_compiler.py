@@ -262,7 +262,7 @@ class Compiler(InstructionSet):
 
                 # process labels
                 if isinstance(token, Label):
-                    instruction[token_idx] = Argument(labels[id(token)], AsmTypes.POINTER)
+                    instruction[token_idx] = Argument(token, AsmTypes.POINTER)
 
                 # if the token is a pointer
                 elif token.token[0] == "$":
@@ -277,6 +277,7 @@ class Compiler(InstructionSet):
         instruction_ptr[0] = -1
 
         # offset
+        # which is caused when a new instruction is inserted
         future_offset = 0
 
         # code pages
@@ -340,7 +341,7 @@ class Compiler(InstructionSet):
         instruction_ptr[0] = -1
 
         while (instruction := next_instruction()) is not None:
-            print(instruction)
+            print(instruction_ptr[0], instruction)
 
         # # otherwise => final step of compilation
         # instruction_list: list[list[Token | Argument] | Label]

@@ -45,3 +45,4 @@ _start:
     print(0)
 _end:
     HALT
+    JMP $_end
