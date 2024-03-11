@@ -10,6 +10,7 @@ class AsmTypes(Enum):
 
     INTEGER = 1
     POINTER = 2
+    NAMED = 3
 
 
 class Token:
@@ -56,6 +57,18 @@ class Label(Token):
 
     def __repr__(self):
         return f"${self.token}"
+
+
+class LabelPointer:
+    """
+    Points to index of a label.
+    """
+
+    def __init__(self, value):
+        self.value = value
+
+    def __repr__(self):
+        return f"{self.value}"
 
 
 class Macro:
@@ -118,4 +131,6 @@ class Argument:
         if self.type is AsmTypes.INTEGER:
             return f"{self.value}"
         elif self.type is AsmTypes.POINTER:
+            return f"#${self.value}"
+        elif self.type is AsmTypes.NAMED:
             return f"${self.value}"
