@@ -127,6 +127,12 @@ class Argument:
         self.value = value
         self.type = type_
 
+    def __eq__(self, other):
+        if not isinstance(other, self.__class__):
+            return False
+        if self.value == other.value and self.type is other.type:
+            return True
+
     def __repr__(self):
         if self.type is AsmTypes.INTEGER:
             return f"{self.value}"

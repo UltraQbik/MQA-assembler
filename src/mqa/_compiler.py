@@ -235,16 +235,34 @@ class Compiler(InstructionSet):
                 return None
             return instruction_list[instruction_ptr[0]]
 
-        # previous instruction
-        prev_instruction = None
+        # if the instruction is non changing
+        to_change: bool = True
+
+        # accumulator value
+        accumulator_value: Argument | None = None
 
         # go through instruction list and optimize instructions
         while (instruction := next_instruction()) is not None:
-            # if instruction[0] in
+            # skip labels
+            if isinstance(instruction, Label):
+                continue
 
-            if isinstance(instruction, list):
-                prev_instruction = instruction
+            if instruction[0].token not in cls.non_modifying_instructions:
+                to_change = False
 
+            # if the instruction loads a value
+            if instruction[0].token == "LRA":
+                # check if it's the same value that was loaded previously
+                if accumulator_value == instruction[1] and to_change:
+                    # if so, remove the LRA instruction, as the accumulator already contains that value
+                    instruction_list.pop(instruction_ptr[0])
+                    instruction_ptr[0] -= 1
+
+                # update the accumulator value with new instruction argument
+                accumulator_value = instruction[1]
+
+            # update previous instruction
+            prev_instruction = instruction
 
     @classmethod
     def process_instructions(cls, instruction_list: list[list[Token | Argument] | Label]):
