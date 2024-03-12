@@ -210,9 +210,41 @@ class Compiler(InstructionSet):
         if scope != "main":
             return instruction_list
 
+        # optimizes unnecessary instructions
+        cls.optimize_instructions(instruction_list)
+
+        # processes the labels and the instruction arguments
         cls.process_instructions(instruction_list)
 
         return instruction_list
+
+    @classmethod
+    def optimize_instructions(cls, instruction_list: list[list[Token | Argument] | Label]):
+        """
+        Optimizes the list of instructions and labels (when possible)
+        :param instruction_list: list of instructions
+        """
+
+        # instruction pointer
+        instruction_ptr = [-1]
+
+        # instruction fetching function
+        def next_instruction() -> list[Token | Argument] | Label | None:
+            instruction_ptr[0] += 1
+            if instruction_ptr[0] >= len(instruction_list):
+                return None
+            return instruction_list[instruction_ptr[0]]
+
+        # previous instruction
+        prev_instruction = None
+
+        # go through instruction list and optimize instructions
+        while (instruction := next_instruction()) is not None:
+            # if instruction[0] in
+
+            if isinstance(instruction, list):
+                prev_instruction = instruction
+
 
     @classmethod
     def process_instructions(cls, instruction_list: list[list[Token | Argument] | Label]):
