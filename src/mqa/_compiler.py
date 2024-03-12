@@ -261,8 +261,8 @@ class Compiler(InstructionSet):
                 # update the accumulator value with new instruction argument
                 accumulator_value = instruction[1]
 
-            # update previous instruction
-            prev_instruction = instruction
+                # make to_change true again
+                to_change = True
 
     @classmethod
     def process_instructions(cls, instruction_list: list[list[Token | Argument] | Label]):
