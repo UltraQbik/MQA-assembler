@@ -202,6 +202,37 @@ class Compiler(InstructionSet):
                 macro.put_args(*macro_args)
                 instruction_list += macro.body
 
+            # FOR keyword
+            elif token.token == "FOR":
+                for_variable_name = next_token()
+
+                # check syntax for a for loop
+                if next_token().token != "IN":
+                    raise SyntaxError("Incorrect FOR loop syntax")
+
+                for_range = next_token()
+                for_body = next_token()
+
+                # checks
+                if not isinstance(for_variable_name, Token):
+                    raise SyntaxError(f"Expected a variable, not a '{for_variable_name.__class__}'")
+                if not isinstance(for_range, Token):
+                    raise SyntaxError(f"Expected a range 'n..m', not a '{for_range}'")
+                if not isinstance(for_body, list):
+                    raise SyntaxError("Expected a '{'")
+
+                # construction a for loop class
+                for_loop = ForLoop(
+                    var=for_variable_name.token,
+                    range_=for_range.token,
+                    body=cls.compile(for_body, "for_loop")
+                )
+
+                # process the range
+                for i in for_loop.range:
+                    token_i = Token(str(i), token.traceback)
+                    instruction_list += for_loop.put_args(token_i)
+
             # otherwise raise a name error
             else:
                 raise NameError(f"Undefined instruction word '{token}'")

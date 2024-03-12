@@ -89,7 +89,6 @@ class Macro:
         """
         Puts the arguments in the corresponding places
         :param args: arguments to the macro
-        :returns: self
         :raises TypeError: when the amount of arguments does not match
         """
 
@@ -107,13 +106,64 @@ class Macro:
                     if tok == arg:
                         instruction[token_idx] = args[arg_idx]
         self.args = args
-        return self
 
     def __copy__(self):
         return Macro(self.name, deepcopy(self.args), deepcopy(self.body))
 
     def __repr__(self):
         return f"{{{self.name}({self.args})}}"
+
+
+class ForLoop:
+    def __init__(self, var: str, range_: str, body: list[list[Token] | Label | Macro]):
+        """
+        A for loop class
+        :param var: variable of a for loop
+        :param range_: range of a for loop
+        :param body: body of the for loop
+        :raises SyntaxError: when the syntax is incorrect
+        """
+
+        self.var: str = var
+        self.body: list[list[Token] | Label | Macro] = body
+
+        # string range
+        if range_[0] == range_[-1] in "\"\'":
+            self.range = [ord(x) for x in range_[1:-1]]
+
+        # integer range
+        elif range_.find("..") > -1:
+            split_range = range_.split("..")
+            try:
+                self.range = range(int(split_range[0], base=0), int(split_range[1], base=0))
+            except ValueError:
+                raise SyntaxError("Incorrect syntax for a for loop range, or incorrect integer specified")
+
+        # error
+        else:
+            raise SyntaxError("Unrecognized syntax for a for loop range")
+
+    def put_args(self, arg: Token):
+        """
+        Replaces 'self.var' inside tokens with arg.
+        :param arg: argument that needs to be put
+        :return: new body of the for loop, with variable replaced
+        """
+
+        # go through instructions and the instruction's tokens, and process them
+        # make sure it's a copy of the body, to not modify the original
+        new_body = deepcopy(self.body)
+        for instruction in new_body:
+            # skip labels and macros
+            if isinstance(instruction, (Label, Macro)):
+                continue
+
+            # go through instruction's tokens
+            for token_idx, token in enumerate(instruction):
+                # if token is the same as the variable, replace it with arg
+                if token.token == self.var:
+                    instruction[token_idx] = arg
+        return new_body
 
 
 class Argument:
