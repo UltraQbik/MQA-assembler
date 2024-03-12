@@ -247,9 +247,6 @@ class Compiler(InstructionSet):
             if isinstance(instruction, Label):
                 continue
 
-            if instruction[0].token not in cls.non_modifying_instructions:
-                to_change = False
-
             # if the instruction loads a value
             if instruction[0].token == "LRA":
                 # check if it's the same value that was loaded previously
@@ -263,6 +260,10 @@ class Compiler(InstructionSet):
 
                 # make to_change true again
                 to_change = True
+
+            # if the instruction modifies the accumulator
+            elif instruction[0].token not in cls.non_modifying_instructions:
+                to_change = False
 
     @classmethod
     def process_instructions(cls, instruction_list: list[list[Token | Argument] | Label]):
@@ -283,8 +284,8 @@ class Compiler(InstructionSet):
             return instruction_list[instruction_ptr[0]]
 
         # inserts new instruction
-        def insert_instruction(idx: int, opcode: Token, value, type_: AsmTypes):
-            instruction_list.insert(idx, [opcode, Argument(value, type_)])
+        def insert_instruction(index: int, opcode: Token, value, type_: AsmTypes):
+            instruction_list.insert(index, [opcode, Argument(value, type_)])
 
         # labels
         labels: dict[int, LabelPointer] = {}
@@ -357,6 +358,7 @@ class Compiler(InstructionSet):
                     new_rom_page = instruction[1].value.value >> 8
                 else:
                     new_rom_page = instruction[1].value >> 8
+                    print("WARN: don't use static jump indexes; they most likely don't point where you want them to")
 
             # any other instruction
             else:
