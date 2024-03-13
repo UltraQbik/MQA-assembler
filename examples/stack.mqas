@@ -23,7 +23,7 @@ _start:
         LRA char
         PUSH
     }
-    FOR var IN 65..80 {
+    FOR var IN 80..65 {
         POP
         SRA var
     }

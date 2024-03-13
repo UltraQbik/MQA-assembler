@@ -135,7 +135,13 @@ class ForLoop:
         elif range_.find("..") > -1:
             split_range = range_.split("..")
             try:
-                self.range = range(int(split_range[0], base=0), int(split_range[1], base=0))
+                range_start = int(split_range[0], base=0)
+                range_end = int(split_range[1], base=0)
+                if range_end > range_start:
+                    self.range = range(range_start, range_end)
+                else:
+                    # we assume the user wants the same sequence just in reverse
+                    self.range = range(range_start - 1, range_end - 1, -1)
             except ValueError:
                 raise SyntaxError("Incorrect syntax for a for loop range, or incorrect integer specified")
 
