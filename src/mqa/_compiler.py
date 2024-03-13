@@ -76,7 +76,6 @@ class Compiler(InstructionSet):
                     args=macro_args,
                     body=cls.compile(macro_body, "macro")
                 )
-
         return macros
 
     @classmethod
@@ -133,7 +132,6 @@ class Compiler(InstructionSet):
                     if token.token[1:] not in labels:
                         raise NameError(f"Undefined label '{token}'")
                     token_tree[token_ptr[0]] = labels[token.token[1:]]
-
         return labels
 
     @classmethod

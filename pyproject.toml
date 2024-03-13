@@ -6,7 +6,7 @@ build-backend = "setuptools.build_meta"
 name = "mqa"
 description = "Compiler for MQ"
 readme = "README.md"
-version = "v1.1.0"
+version = "v1.1.1"
 authors = [{name = "Qubane"}]
 classifiers = [
     "License :: OSI Approved :: MIT License",

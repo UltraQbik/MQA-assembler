@@ -19,6 +19,8 @@ class InstructionSet:
         'LRP': 11,
         'CCP': 12,
         'CRP': 13,
+        'PUSH': 14,
+        'POP': 15,
         'AND': 16,
         'OR': 17,
         'XOR': 18,
