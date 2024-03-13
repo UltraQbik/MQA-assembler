@@ -11,14 +11,11 @@ Information on MQ can be found on my discord servers:<br/>
 # Compatibility
 This repo will work with python 3.10+ (doesn't work on python ≤ 3.9 because of type hinting syntax)<br/>
 No additional libraries required, it uses the default ones, preinstalled with python.
-# Using assembler
+# Building
 1. git clone https://github.com/UltraQbik/MQA-assembler
 2. cd MQA-assembler
-3. main.py -help
-<br/>From there you can just follow the instructions from help
-# Building
-1. python -m build
-2. pip install dist/\*.whl
+3. python -m build
+4. pip install dist/\*.whl
 <br/>Now you can run it through either mqa or python -m mqa
 # Code examples
 Code examples are located in directory 'examples', there you will find some examples of assembly code written for MQ's
