@@ -1,0 +1,34 @@
+macro print(char_ptr) {
+    ; Prints out null terminated string
+
+    LRA char_ptr
+    SRA $256
+
+loop:
+    LRA $256
+    CCP 0
+    LRP
+    JMPZ $end
+
+    UOC
+    LRA $256
+    INC
+    SRA $256
+    JMP $loop
+end:
+}
+
+_start:
+    FOR char IN "hello world.txt" {
+        LRA char
+        PUSH
+    }
+    FOR var IN 65..80 {
+        POP
+        SRA var
+    }
+
+    print(65)
+
+_end:
+    HALT

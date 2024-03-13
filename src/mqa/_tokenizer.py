@@ -36,6 +36,10 @@ class Tokenizer:
         # if we are inside a comment
         is_commented = False
 
+        # if we are inside a string
+        is_string = False
+        string_type = ""
+
         # token string (the accumulative string)
         token_str = ""
 
@@ -61,17 +65,34 @@ class Tokenizer:
                 continue
 
             # if a character is a space or a comma
-            if char == " " or char == ",":
+            if (char == " " or char == ",") and not is_string:
                 if token_str != "":
                     token_list.append(Token(token_str, line_number))
                     token_str = ""
 
             # if a character is a bracket
-            elif char in "[]{}()":
+            elif (char in "[]{}()") and not is_string:
                 if token_str != "":
                     token_list.append(Token(token_str, line_number))
                     token_str = ""
                 token_list.append(Token(char, line_number))
+
+            # if a character is a quote
+            elif char in "\"\'":
+                # add quote back, cuz too lazy to redo the compiler and tokens
+                token_str += char
+
+                if string_type == char or string_type == "":
+                    # if there's an escape character before the quote
+                    if char_ptr[0] > 0 and code[char_ptr[0]-1] == "\\":
+                        continue
+
+                    # if it was already a string, then make it not a string
+                    if is_string:
+                        string_type = ""
+                    else:
+                        string_type = char
+                    is_string = not is_string
 
             # otherwise just add it to token string
             else:
