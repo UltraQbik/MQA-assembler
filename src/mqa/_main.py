@@ -7,7 +7,7 @@ parser = argparse.ArgumentParser(prog="mqa", description="Compiles Mini Quantum 
 parser.add_argument("input", type=str, help="source file")
 parser.add_argument("-o", "--output", type=str, help="output file")
 parser.add_argument("--json", help="creates a blueprint for Scrap Mechanic", action="store_true")
-parser.add_argument("--no-byte", help="outputs the assembly code", action="store_true")
+parser.add_argument("-l", "--list", help="prints out the compiled code", action="store_true")
 args = parser.parse_args()
 
 
@@ -46,30 +46,31 @@ def main():
     # compilation
     instruction_list = code_compile(code)
 
+    # if we want to see the compiled instructions
+    if args.list:
+        # how many digits does the length of list have
+        # 10 - 2 digits
+        # 123 - 3 digits
+        line_count_offset = len(instruction_list.__len__().__str__())
+        for idx, instruction in enumerate(instruction_list):
+            mnemonic = instruction[0].token
+            argument = instruction[1] if len(instruction) > 1 else ""
+            print(f"{idx: >{line_count_offset}} | {mnemonic} {argument}")
+
     # file creation
     output_filename = args.output
     if output_filename is None:
         # 'compiled_{file}'
         output_filename = "compiled_" + os.path.splitext(os.path.basename(args.input))[0]
+        output_filename += ".mqa"
 
-        # if '--no-byte' is True, append '.mqas' to the end of the filename
-        if args.no_byte:
-            output_filename += ".mqas"
+    # append .mqa to end of the file, if it doesn't have it
+    if os.path.splitext(output_filename)[1] == "":
+        output_filename += ".mqa"
 
-        # else, append '.mqa' to the end of the filename
-        else:
-            output_filename += ".mqa"
-
-    # bytecode file output (for the emulator)
-    if args.no_byte:
-        # write instructions to a file
-        with open(output_filename, "w", encoding="utf8") as file:
-            for instruction in instruction_list:
-                file.write(" ".join([x.__str__() for x in instruction]) + "\n")
-    else:
-        # write bytes to a file
-        with open(output_filename, "wb") as file:
-            file.write(Compiler.get_bytecode(instruction_list))
+    # write bytes to a file
+    with open(output_filename, "wb") as file:
+        file.write(Compiler.get_bytecode(instruction_list))
 
 
 if __name__ == '__main__':

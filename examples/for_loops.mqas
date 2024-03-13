@@ -1,0 +1,11 @@
+; basic test of a for loop
+
+_start:
+    ; print the alphabet
+    FOR var IN 65..91 {
+        LRA var
+        UOC
+    }
+
+_end:
+    HALT

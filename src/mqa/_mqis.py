@@ -49,3 +49,14 @@ class InstructionSet:
         'INT': 126,
         'HALT': 127,
     }
+
+    non_modifying_instructions: set[str] = {
+        "SRA",
+        "CCF",
+        "CRP",
+        "UO",
+        "UOC",
+        "UOCR",
+        "PRW",
+        "INT"
+    }

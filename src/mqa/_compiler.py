@@ -202,6 +202,37 @@ class Compiler(InstructionSet):
                 macro.put_args(*macro_args)
                 instruction_list += macro.body
 
+            # FOR keyword
+            elif token.token == "FOR":
+                for_variable_name = next_token()
+
+                # check syntax for a for loop
+                if next_token().token != "IN":
+                    raise SyntaxError("Incorrect FOR loop syntax")
+
+                for_range = next_token()
+                for_body = next_token()
+
+                # checks
+                if not isinstance(for_variable_name, Token):
+                    raise SyntaxError(f"Expected a variable, not a '{for_variable_name.__class__}'")
+                if not isinstance(for_range, Token):
+                    raise SyntaxError(f"Expected a range 'n..m', not a '{for_range}'")
+                if not isinstance(for_body, list):
+                    raise SyntaxError("Expected a '{'")
+
+                # construction a for loop class
+                for_loop = ForLoop(
+                    var=for_variable_name.token,
+                    range_=for_range.token,
+                    body=cls.compile(for_body, "for_loop")
+                )
+
+                # process the range
+                for i in for_loop.range:
+                    token_i = Token(str(i), token.traceback)
+                    instruction_list += for_loop.put_args(token_i)
+
             # otherwise raise a name error
             else:
                 raise NameError(f"Undefined instruction word '{token}'")
@@ -210,13 +241,20 @@ class Compiler(InstructionSet):
         if scope != "main":
             return instruction_list
 
-        # otherwise => final step of compilation
-        instruction_list: list[list[Token | Argument] | Label]
+        # optimizes unnecessary instructions
+        cls.optimize_instructions(instruction_list)
 
-        # label pointers
-        # label id -> label index in the instruction list
-        label_pointer: dict[int, int] = {}
-        label_future_offset: int = 0
+        # processes the labels and the instruction arguments
+        cls.process_instructions(instruction_list)
+
+        return instruction_list
+
+    @classmethod
+    def optimize_instructions(cls, instruction_list: list[list[Token | Argument] | Label]):
+        """
+        Optimizes the list of instructions and labels (when possible)
+        :param instruction_list: list of instructions
+        """
 
         # instruction pointer
         instruction_ptr = [-1]
@@ -228,90 +266,181 @@ class Compiler(InstructionSet):
                 return None
             return instruction_list[instruction_ptr[0]]
 
-        # go through all instructions, find & remove labels
+        # if the instruction is non changing
+        to_change: bool = True
+
+        # accumulator value
+        accumulator_value: Argument | None = None
+
+        # go through instruction list and optimize instructions
         while (instruction := next_instruction()) is not None:
+            # skip labels
             if isinstance(instruction, Label):
-                label_pointer[id(instruction)] = instruction_ptr[0]
+                continue
+
+            # if the instruction loads a value
+            if instruction[0].token == "LRA":
+                # check if it's the same value that was loaded previously
+                if accumulator_value == instruction[1] and to_change:
+                    # if so, remove the LRA instruction, as the accumulator already contains that value
+                    instruction_list.pop(instruction_ptr[0])
+                    instruction_ptr[0] -= 1
+
+                # update the accumulator value with new instruction argument
+                accumulator_value = instruction[1]
+
+                # make to_change true again
+                to_change = True
+
+            # if the instruction modifies the accumulator
+            elif instruction[0].token not in cls.non_modifying_instructions:
+                to_change = False
+
+    @classmethod
+    def process_instructions(cls, instruction_list: list[list[Token | Argument] | Label]):
+        """
+        Processes the instruction list.
+        Makes jump labels and token arguments
+        :param instruction_list: list of instructions
+        """
+
+        # instruction pointer
+        instruction_ptr = [-1]
+
+        # instruction fetching function
+        def next_instruction() -> list[Token | Argument] | Label | None:
+            instruction_ptr[0] += 1
+            if instruction_ptr[0] >= len(instruction_list):
+                return None
+            return instruction_list[instruction_ptr[0]]
+
+        # inserts new instruction
+        def insert_instruction(index: int, opcode: Token, value, type_: AsmTypes):
+            instruction_list.insert(index, [opcode, Argument(value, type_)])
+
+        # labels
+        labels: dict[int, LabelPointer] = {}
+
+        # go through instructions and process labels
+        while (instruction := next_instruction()) is not None:
+            # make a table entry
+            if isinstance(instruction, Label):
+                labels[id(instruction)] = LabelPointer(instruction_ptr[0])
+
+                # pop the label from instruction list
                 instruction_list.pop(instruction_ptr[0])
                 instruction_ptr[0] -= 1
-
-        # cache and rom pages
-        cache_page = 0
-        rom_page = 0
+                continue
 
         # reset instruction pointer
         instruction_ptr[0] = -1
 
-        # go through all instructions and finalize the compilation
+        # go through instruction and process arguments
+        # integers here are not limited to 8 bits
         while (instruction := next_instruction()) is not None:
+            # go through instruction arguments, and process them
             for token_idx, token in enumerate(instruction):
-                # skip mnemonics
+                # skip mnemonics for now
                 if token_idx == 0:
                     continue
 
-                # if it's a label pointer
+                # process labels
                 if isinstance(token, Label):
-                    jump_index = label_pointer[id(token)]       # where we want to jump
+                    instruction[token_idx] = Argument(labels[id(token)], AsmTypes.NAMED)
 
-                    # if the just index is further down than the current pointer points to
-                    if jump_index > instruction_ptr[0]:
-                        jump_index += label_future_offset
+                # if the token is a pointer
+                elif token.token[0] == "$":
+                    # if it's a numeric pointer
+                    instruction[token_idx] = Argument(int(token.token[1:], base=0), AsmTypes.POINTER)
 
-                    new_rom_page = jump_index >> 8              # the rom page in which the index is
-
-                    # check if the rom page is way too big still
-                    if new_rom_page > 255:
-                        raise Exception(f"The jump index '{token}' exceeds 64 KiB of ROM")
-
-                    # if the jump rom page is not the same as the current one => add CRP instruction
-                    if rom_page != new_rom_page:
-                        # insert an instruction that changes the rom page
-                        instruction_list.insert(
-                            instruction_ptr[0],
-                            [
-                                Token("CRP", token.traceback),
-                                Argument(new_rom_page, AsmTypes.INTEGER)
-                            ])
-                        # offset pointer by 1
-                        instruction_ptr[0] += 1
-                        label_future_offset += 1
-
-                        # update current rom page
-                        rom_page = new_rom_page
-                    instruction[token_idx] = Argument(jump_index & 255, AsmTypes.INTEGER)
-                    continue
-
-                # some kind of pointer
-                if token.token[0] == "$":
-                    if token.token[1].isdigit():
-                        cache_address = int(token.token[1:], base=0)
-                        new_cache_page = cache_address >> 8
-
-                        # check if the new cache page is bigger than 64 KiB of cache
-                        if new_cache_page > 255:
-                            raise Exception(f"The address '{token}' exceeds 64 KiB of cache")
-
-                        # if new cache page is not the same as the current one => add CCP instruction
-                        if cache_page != new_cache_page:
-                            # insert an instruction that changes the cache page
-                            instruction_list.insert(
-                                instruction_ptr[0],
-                                [
-                                    Token("CCP", token.traceback),
-                                    Argument(new_cache_page, AsmTypes.INTEGER)
-                                ])
-                            # offset pointer by 1
-                            instruction_ptr[0] += 1
-                            label_future_offset += 1
-
-                            # update current rom page
-                            cache_page = new_cache_page
-
-                        instruction[token_idx] = Argument(cache_address & 255, AsmTypes.POINTER)
+                # if the token is just a number
                 else:
-                    instruction[token_idx] = Argument(int(token.token, base=0) & 255, AsmTypes.INTEGER)
+                    instruction[token_idx] = Argument(int(token.token, base=0), AsmTypes.INTEGER)
 
-        return instruction_list
+        # reset instruction pointer
+        instruction_ptr[0] = -1
+
+        # code pages
+        cache_page = 0
+        new_cache_page = 0
+        rom_page = 0
+        new_rom_page = 0
+
+        # go through instruction and process arguments & check / insert instructions
+        while (instruction := next_instruction()) is not None:
+            # check mnemonics
+            # manual change cache page
+            if instruction[0] == "CCP":
+                # change cache page
+                cache_page = instruction[1].value
+                new_cache_page = cache_page
+
+            # manual change rom page
+            elif instruction[0] == "CRP":
+                # change rom page
+                rom_page = instruction[1].value
+                new_rom_page = rom_page
+
+            # any jump instruction
+            elif instruction[0] in ["JMP", "JMPP", "JMPZ", "JMPN", "JMPC", "CALL"]:
+                # instructions that go to different address in ROM
+                # NOTE: this most likely will not work in some cases
+                if isinstance(instruction[1].value, LabelPointer):
+                    new_rom_page = instruction[1].value.value >> 8
+                else:
+                    new_rom_page = instruction[1].value >> 8
+                    print("WARN: don't use static jump indexes; they most likely don't point where you want them to")
+
+            # any other instruction
+            else:
+                # if instruction has any arguments
+                if len(instruction) > 1:
+                    new_cache_page = instruction[1].value >> 8
+
+            if cache_page != new_cache_page or rom_page != new_rom_page:
+                # insert instruction if the cache_page != new_cache_page
+                if cache_page != new_cache_page:
+                    # update page
+                    cache_page = new_cache_page
+
+                    # insert instruction and account for it
+                    insert_instruction(
+                        instruction_ptr[0],
+                        Token("CCP", instruction[0].traceback),
+                        new_cache_page, AsmTypes.INTEGER)
+
+                # insert instruction if the rom_page != new_rom_page
+                if rom_page != new_rom_page:
+                    # update page
+                    rom_page = new_rom_page
+
+                    # insert instruction and account for it
+                    insert_instruction(
+                        instruction_ptr[0],
+                        Token("CRP", instruction[0].traceback),
+                        new_cache_page, AsmTypes.INTEGER)
+
+                # update instruction pointer
+                instruction_ptr[0] += 1
+
+                # update label pointers
+                for label_id, label_idx in labels.items():
+                    # if label index is below current instruction pointer, then the label index is not affected
+                    if label_idx.value < instruction_ptr[0]:
+                        continue
+
+                    # otherwise update the label pointer, and shift it by 1
+                    labels[label_id].value += 1
+
+            # if instruction has any arguments & the arg is not a label
+            if len(instruction) > 1 and instruction[1].type is not AsmTypes.NAMED:
+                # fix it to 8bit integer
+                instruction[1].value = instruction[1].value & 255
+
+        # replace label pointers with ints
+        for idx, instruction in enumerate(instruction_list):
+            if len(instruction) > 1 and isinstance(instruction[1].value, LabelPointer):
+                instruction[1].value = instruction[1].value.value
 
     @classmethod
     def get_bytecode(cls, instruction_list: list[list[Token | Argument]]) -> bytes:
@@ -332,7 +461,10 @@ class Compiler(InstructionSet):
             # decode data and memory_flag
             if len(instruction) > 1:
                 data = instruction[1].value
-                memory_flag = 1 if instruction[1].type is AsmTypes.POINTER else 0
+                if instruction[1].type is AsmTypes.POINTER:
+                    memory_flag = 1
+                else:
+                    memory_flag = 0
 
             # else, data and memory_flag are 0
             else:
