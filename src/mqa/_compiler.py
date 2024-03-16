@@ -144,6 +144,8 @@ class Compiler(InstructionSet):
         :return: list of instructions and list of includes
         """
 
+        # TODO: rewrite compiler
+
         # labels and macros
         labels = cls.process_scope_labels(token_tree)
         macros = cls.process_scope_macros(token_tree)
@@ -408,7 +410,7 @@ class Compiler(InstructionSet):
             # any other instruction
             else:
                 # if instruction has any arguments
-                if len(instruction) > 1:
+                if len(instruction) > 1 and instruction[1].type is not AsmTypes.INTEGER:
                     new_cache_page = instruction[1].value >> 8
 
             if cache_page != new_cache_page or rom_page != new_rom_page:
