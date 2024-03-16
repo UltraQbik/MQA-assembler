@@ -74,7 +74,7 @@ class Compiler(InstructionSet):
                 macros[macro_name.token][len(macro_args)] = Macro(
                     name=macro_name.token,
                     args=macro_args,
-                    body=cls.compile(macro_body, "macro")
+                    body=cls.compile(macro_body, "macro")[0]
                 )
         return macros
 
@@ -135,13 +135,16 @@ class Compiler(InstructionSet):
         return labels
 
     @classmethod
-    def compile(cls, token_tree: list[list[Token] | Token], scope="main") -> list[list[Token | Argument]]:
+    def compile(cls, token_tree: list[list[Token] | Token], scope="main")\
+            -> tuple[list[list[Token | Argument]], list[str]]:
         """
         Compiles the token_tree.
         :param token_tree: tree of tokens
         :param scope: scope which is being compiled. Default = main
-        :return: list of instructions
+        :return: list of instructions and list of includes
         """
+
+        # TODO: rewrite compiler
 
         # labels and macros
         labels = cls.process_scope_labels(token_tree)
@@ -149,6 +152,9 @@ class Compiler(InstructionSet):
 
         # instruction list
         instruction_list = []
+
+        # includes
+        include_list: list[str] = []
 
         # token pointer
         token_ptr = [-1]
@@ -223,7 +229,7 @@ class Compiler(InstructionSet):
                 for_loop = ForLoop(
                     var=for_variable_name.token,
                     range_=for_range.token,
-                    body=cls.compile(for_body, "for_loop")
+                    body=cls.compile(for_body, "for_loop")[0]
                 )
 
                 # process the range
@@ -231,13 +237,25 @@ class Compiler(InstructionSet):
                     token_i = Token(str(i), token.traceback)
                     instruction_list += for_loop.put_args(token_i)
 
+            # INCLUDE keyword
+            elif token.token == "INCLUDE":
+                include_name = next_token()
+
+                # check that it's a token
+                if not isinstance(include_name, Token):
+                    raise SyntaxError("Incorrect include syntax")
+
+                # append token to the list of includes
+                # NOTE: they are processed only in main scope, macros are ignored
+                include_list.append(include_name.token)
+
             # otherwise raise a name error
             else:
                 raise NameError(f"Undefined instruction word '{token}'")
 
         # if we are processing the macro => we are done here
         if scope != "main":
-            return instruction_list
+            return instruction_list, include_list
 
         # optimizes unnecessary instructions
         cls.optimize_instructions(instruction_list)
@@ -245,7 +263,7 @@ class Compiler(InstructionSet):
         # processes the labels and the instruction arguments
         cls.process_instructions(instruction_list)
 
-        return instruction_list
+        return instruction_list, include_list
 
     @classmethod
     def optimize_instructions(cls, instruction_list: list[list[Token | Argument] | Label]):
@@ -392,7 +410,7 @@ class Compiler(InstructionSet):
             # any other instruction
             else:
                 # if instruction has any arguments
-                if len(instruction) > 1:
+                if len(instruction) > 1 and instruction[1].type is not AsmTypes.INTEGER:
                     new_cache_page = instruction[1].value >> 8
 
             if cache_page != new_cache_page or rom_page != new_rom_page:

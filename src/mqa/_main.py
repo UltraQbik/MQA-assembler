@@ -20,9 +20,9 @@ def code_compile(code: str):
 
     token_list = Tokenizer.tokenize(code)
     token_tree = Tokenizer.build_token_tree(token_list)
-    instruction_list = Compiler.compile(token_tree)
+    output = Compiler.compile(token_tree)
 
-    return instruction_list
+    return output
 
 
 def die(message=None):
@@ -44,14 +44,14 @@ def main():
         code = file.read()
 
     # compilation
-    instruction_list = code_compile(code)
+    compiler_output = code_compile(code)
 
     # if we want to see the compiled instructions
     if args.verbose:
         print("Instructions start:")
         # how many digits does the length of list have
-        line_count_offset = len(instruction_list.__len__().__str__())
-        for idx, instruction in enumerate(instruction_list):
+        line_count_offset = len(compiler_output[0].__len__().__str__())
+        for idx, instruction in enumerate(compiler_output[0]):
             mnemonic = instruction[0].token
             argument = instruction[1] if len(instruction) > 1 else ""
             print(f"\t{idx: >{line_count_offset}} | {mnemonic} {argument}")
@@ -71,7 +71,7 @@ def main():
     # write bytes to a file
     with open(output_filename, "wb") as file:
         file.write(
-            Constructor.generate_bytes([], instruction_list, verbose=args.verbose)
+            Constructor.generate_bytes(compiler_output[1], compiler_output[0], verbose=args.verbose)
         )
 
 
