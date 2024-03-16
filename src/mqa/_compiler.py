@@ -135,7 +135,7 @@ class Compiler(InstructionSet):
         return labels
 
     @classmethod
-    def compile(cls, token_tree: list[list[Token] | Token], scope="main") -> list[list[Token | Argument]]:
+    def compile(cls, token_tree: list[list[Token] | Token], scope="main") -> [list[list[Token | Argument]], list[str]]:
         """
         Compiles the token_tree.
         :param token_tree: tree of tokens
@@ -149,6 +149,9 @@ class Compiler(InstructionSet):
 
         # instruction list
         instruction_list = []
+
+        # includes
+        include_list: list[str] = []
 
         # token pointer
         token_ptr = [-1]
@@ -231,6 +234,18 @@ class Compiler(InstructionSet):
                     token_i = Token(str(i), token.traceback)
                     instruction_list += for_loop.put_args(token_i)
 
+            # INCLUDE keyword
+            elif token.token == "INCLUDE":
+                include_name = next_token()
+
+                # check that it's a token
+                if not isinstance(include_name, Token):
+                    raise SyntaxError("Incorrect include syntax")
+
+                # append token to the list of includes
+                # NOTE: they are processed only in main scope, macros are ignored
+                include_list.append(include_name.token)
+
             # otherwise raise a name error
             else:
                 raise NameError(f"Undefined instruction word '{token}'")
@@ -245,7 +260,7 @@ class Compiler(InstructionSet):
         # processes the labels and the instruction arguments
         cls.process_instructions(instruction_list)
 
-        return instruction_list
+        return instruction_list, include_list
 
     @classmethod
     def optimize_instructions(cls, instruction_list: list[list[Token | Argument] | Label]):
