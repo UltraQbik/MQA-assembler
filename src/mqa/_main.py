@@ -1,13 +1,13 @@
 import os
 import argparse
-from . import Compiler, Tokenizer
+from . import Compiler, Tokenizer, Constructor
 
 
 parser = argparse.ArgumentParser(prog="mqa", description="Compiles Mini Quantum CPU source files.")
 parser.add_argument("input", type=str, help="source file")
 parser.add_argument("-o", "--output", type=str, help="output file")
-parser.add_argument("--json", help="creates a blueprint for Scrap Mechanic", action="store_true")
-parser.add_argument("-l", "--list", help="prints out the compiled code", action="store_true")
+parser.add_argument("-j", "--json", help="creates a blueprint for Scrap Mechanic", action="store_true")
+parser.add_argument("-v", "--verbose", help="verbose prints", action="store_true")
 args = parser.parse_args()
 
 
@@ -47,15 +47,15 @@ def main():
     instruction_list = code_compile(code)
 
     # if we want to see the compiled instructions
-    if args.list:
+    if args.verbose:
+        print("Instructions start:")
         # how many digits does the length of list have
-        # 10 - 2 digits
-        # 123 - 3 digits
         line_count_offset = len(instruction_list.__len__().__str__())
         for idx, instruction in enumerate(instruction_list):
             mnemonic = instruction[0].token
             argument = instruction[1] if len(instruction) > 1 else ""
-            print(f"{idx: >{line_count_offset}} | {mnemonic} {argument}")
+            print(f"\t{idx: >{line_count_offset}} | {mnemonic} {argument}")
+        print("Instructions end.")
 
     # file creation
     output_filename = args.output
@@ -70,7 +70,9 @@ def main():
 
     # write bytes to a file
     with open(output_filename, "wb") as file:
-        file.write(Compiler.get_bytecode(instruction_list))
+        file.write(
+            Constructor.generate_bytes([], instruction_list, verbose=args.verbose)
+        )
 
 
 if __name__ == '__main__':
