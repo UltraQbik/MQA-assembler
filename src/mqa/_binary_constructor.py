@@ -38,7 +38,7 @@ class Constructor:
         data += b'----'
 
         # section start
-        section_start = 0
+        section_start = len(data)
 
         # includeSectionData
         for include in includes:
@@ -49,7 +49,7 @@ class Constructor:
         data[4:6] = include_section_size.to_bytes(2, "little")
 
         # section start
-        section_start = 0
+        section_start = len(data)
 
         # assemblySectionData
         for instruction in instruction_list:
@@ -87,6 +87,7 @@ class Constructor:
             print(f"\tincludeSectionSize:  {include_section_size}")
             print(f"\tassemblySectionSize: {assembly_section_size}")
             print("Header end.")
+            print(f"Total size: {len(data)} bytes")
 
         # return the data
         return data
