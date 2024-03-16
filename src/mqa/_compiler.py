@@ -74,7 +74,7 @@ class Compiler(InstructionSet):
                 macros[macro_name.token][len(macro_args)] = Macro(
                     name=macro_name.token,
                     args=macro_args,
-                    body=cls.compile(macro_body, "macro")
+                    body=cls.compile(macro_body, "macro")[0]
                 )
         return macros
 
@@ -135,12 +135,13 @@ class Compiler(InstructionSet):
         return labels
 
     @classmethod
-    def compile(cls, token_tree: list[list[Token] | Token], scope="main") -> [list[list[Token | Argument]], list[str]]:
+    def compile(cls, token_tree: list[list[Token] | Token], scope="main")\
+            -> tuple[list[list[Token | Argument]], list[str]]:
         """
         Compiles the token_tree.
         :param token_tree: tree of tokens
         :param scope: scope which is being compiled. Default = main
-        :return: list of instructions
+        :return: list of instructions and list of includes
         """
 
         # labels and macros
@@ -226,7 +227,7 @@ class Compiler(InstructionSet):
                 for_loop = ForLoop(
                     var=for_variable_name.token,
                     range_=for_range.token,
-                    body=cls.compile(for_body, "for_loop")
+                    body=cls.compile(for_body, "for_loop")[0]
                 )
 
                 # process the range
@@ -252,7 +253,7 @@ class Compiler(InstructionSet):
 
         # if we are processing the macro => we are done here
         if scope != "main":
-            return instruction_list
+            return instruction_list, include_list
 
         # optimizes unnecessary instructions
         cls.optimize_instructions(instruction_list)

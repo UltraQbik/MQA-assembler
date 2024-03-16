@@ -1,6 +1,9 @@
 ; This is a simple filetest for MQA-emulator
 
 
+INCLUDE FileManager
+
+
 macro sra(val, adr) {
     LRA val
     SRA adr
