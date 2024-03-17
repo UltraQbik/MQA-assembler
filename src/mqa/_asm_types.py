@@ -20,7 +20,7 @@ class Token:
         :param tb: traceback line
         """
 
-        self.value = value
+        self.token = value
 
         self._traceback = tb
 
@@ -29,7 +29,7 @@ class Token:
         return self._traceback
 
     def __repr__(self):
-        return self.value.__repr__()
+        return self.token.__repr__()
 
 
 class Label(Token):
@@ -74,6 +74,41 @@ class Scope:
 
         self.body: list = body
         self.btype: BType = btype
+
+        self.pointer: int = -1
+
+    def next(self) -> Any:
+        """
+        :return: next item in the scope or None if the scope has ended
+        """
+
+        self.pointer += 1
+        if self.pointer >= self.body.__len__():
+            return None
+        return self.body[self.pointer]
+
+    def pop(self) -> Any:
+        """
+        Pops next item on the list
+        :return: next item on the list
+        """
+
+        return self.body.pop(self.pointer)
+
+    def append(self, item) -> None:
+        """
+        Appends item to body
+        """
+
+        self.body.append(item)
+
+    def set_ptr(self, val: int = -1):
+        """
+        Sets the pointer to some token
+        :param val: integer
+        """
+
+        self.pointer = val
 
     def __repr__(self):
         match self.btype:
@@ -129,7 +164,7 @@ class IScope(Scope):
         """
 
         for instruction in self.body:
-            if instruction.value == old:
-                instruction.value = new
+            if instruction.token == old:
+                instruction.token = new
         return self
 

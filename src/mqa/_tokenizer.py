@@ -105,7 +105,7 @@ class Tokenizer:
         # delete the repeating newlines
         pointer = 0
         while pointer < (len(token_list) - 1):
-            if token_list[pointer].value == token_list[pointer + 1].value == "\n":
+            if token_list[pointer].token == token_list[pointer + 1].token == "\n":
                 token_list.pop(pointer)
                 pointer -= 1
             pointer += 1
@@ -118,7 +118,6 @@ class Tokenizer:
         Builds a tree of tokens.
         This function is called recursively.
         :param token_list: list of tokens
-        :param main: if the scope is the main one
         :return: hierarchical token structure
         """
 
@@ -138,17 +137,17 @@ class Tokenizer:
         # make a tree
         while (token := next_token()) is not None:
             # if the token is not a bracket => append & continue
-            if token.value not in "[]{}()":
+            if token.token not in "[]{}()":
                 token_tree.body.append(token)
                 continue
 
             # if it's an opening bracket
-            if token.value in "[{(":
+            if token.token in "[{(":
                 # local scope
                 scope = []
 
                 # bracket types
-                bracket = token.value
+                bracket = token.token
                 bracket_opposite = Tokenizer.opposite_brackets[bracket]
 
                 # how many brackets are nested in each other
@@ -156,7 +155,7 @@ class Tokenizer:
 
                 # go through each scope token and do a recursive call when needed
                 while (scope_token := next_token()) is not None:
-                    if scope_token.value == bracket_opposite and nesting == 0:
+                    if scope_token.token == bracket_opposite and nesting == 0:
                         built_token_tree = Tokenizer.build_token_tree(scope).body
                         match bracket:
                             case "(":
@@ -169,9 +168,9 @@ class Tokenizer:
                                 token_tree.body.append(TScope(
                                     built_token_tree, BType.SQUARE))
                         break
-                    elif scope_token.value == bracket:
+                    elif scope_token.token == bracket:
                         nesting += 1
-                    elif scope_token.value == bracket_opposite:
+                    elif scope_token.token == bracket_opposite:
                         nesting -= 1
                     scope.append(scope_token)
         return token_tree
