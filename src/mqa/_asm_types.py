@@ -75,41 +75,6 @@ class Scope:
         self.body: list = body
         self.btype: BType = btype
 
-        self.pointer: int = -1
-
-    def next(self) -> Any:
-        """
-        :return: next item in the scope or None if the scope has ended
-        """
-
-        self.pointer += 1
-        if self.pointer >= self.body.__len__():
-            return None
-        return self.body[self.pointer]
-
-    def pop(self) -> Any:
-        """
-        Pops next item on the list
-        :return: next item on the list
-        """
-
-        return self.body.pop(self.pointer)
-
-    def append(self, item) -> None:
-        """
-        Appends item to body
-        """
-
-        self.body.append(item)
-
-    def set_pointer(self, val: int = -1):
-        """
-        Sets the pointer to some value
-        :param val: integer
-        """
-
-        self.pointer = val
-
     def __repr__(self):
         match self.btype:
             case BType.MISSING:
