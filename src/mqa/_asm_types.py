@@ -28,6 +28,11 @@ class Token:
     def traceback(self):
         return self._traceback
 
+    def __eq__(self, other):
+        if isinstance(other, Token):
+            return self.token == other.token
+        return False
+
     def __repr__(self):
         return self.token.__repr__()
 
@@ -164,7 +169,17 @@ class IScope(Scope):
         """
 
         for instruction in self.body:
-            if instruction.token == old:
-                instruction.token = new
+            if instruction.value == old:
+                instruction.value = new
         return self
 
+
+class Macro(IScope):
+    """
+    A macro scope
+    """
+
+    def __init__(self, body: list, btype: BType, args: TScope):
+        super().__init__(body, btype)
+
+        self.args: TScope = args
