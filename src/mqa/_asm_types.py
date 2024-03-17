@@ -1,5 +1,5 @@
 from enum import Enum
-from typing import Any
+from typing import Any, Iterable
 
 
 class BType(Enum):
@@ -28,7 +28,7 @@ class Token:
 
 
 class Instruction:
-    def __init__(self, opcode: str, value: Any, memory_flag: bool, tb: int = 0):
+    def __init__(self, opcode: str, value: Any | None = None, memory_flag: bool = False, tb: int = 0):
         """
         An instruction word
         :param opcode: assembly mnemonic
@@ -37,8 +37,8 @@ class Instruction:
         :param tb: traceback line
         """
 
-        self.opcode = opcode
-        self.value = value
+        self.opcode: str = opcode
+        self.value: int = value if value is not None else 0
         self.flag = memory_flag
 
         self._traceback = tb
@@ -54,7 +54,7 @@ class Instruction:
 
 
 class Scope:
-    def __init__(self, body: list, name: str, btype: BType):
+    def __init__(self, body: Any, btype: BType):
         """
         Some kind of scope
         :param body: list of some things
@@ -62,19 +62,21 @@ class Scope:
         """
 
         self.body = body
-        self.name = name
         self.btype = btype
 
     def __repr__(self):
         match self.btype:
             case BType.MISSING:
-                return f"<scope: {self.name}>"
+                return f"<{self.body.__repr__()}>"
             case BType.ROUND:
-                return f"(scope: {self.name})"
+                return f"({self.body.__repr__()})"
             case BType.CURVED:
-                return f"{{scope: {self.name}}}"
+                return f"{{{self.body.__repr__()}}}"
             case BType.SQUARE:
-                return f"[scope: {self.name}]"
+                return f"[{self.body.__repr__()}]"
+
+    def __iter__(self):
+        return self.body.__iter__()
 
 
 class TScope(Scope):
