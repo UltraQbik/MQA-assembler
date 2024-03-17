@@ -57,7 +57,7 @@ class Scope:
     def __init__(self, body: list, name: str, btype: BType):
         """
         Some kind of scope
-        :param body: list of instructions
+        :param body: list of some things
         :param name: name of the scope
         """
 
