@@ -1,3 +1,4 @@
+from copy import deepcopy
 from enum import Enum
 from typing import Any, Iterable
 
@@ -23,8 +24,18 @@ class Token:
 
         self._traceback = tb
 
+    @property
+    def traceback(self):
+        return self._traceback
+
     def __repr__(self):
         return self.value.__repr__()
+
+
+class Label(Token):
+    """
+    Special kind of token
+    """
 
 
 class Instruction:
@@ -54,15 +65,50 @@ class Instruction:
 
 
 class Scope:
-    def __init__(self, body: Any, btype: BType):
+    def __init__(self, body: list, btype: BType):
         """
         Some kind of scope
         :param body: list of some things
-        :param name: name of the scope
+        :param btype: bracket type
         """
 
-        self.body = body
-        self.btype = btype
+        self.body: list = body
+        self.btype: BType = btype
+
+        self.pointer: int = -1
+
+    def next(self) -> Any:
+        """
+        :return: next item in the scope or None if the scope has ended
+        """
+
+        self.pointer += 1
+        if self.pointer >= self.body.__len__():
+            return None
+        return self.body[self.pointer]
+
+    def pop(self) -> Any:
+        """
+        Pops next item on the list
+        :return: next item on the list
+        """
+
+        return self.body.pop(self.pointer)
+
+    def append(self, item) -> None:
+        """
+        Appends item to body
+        """
+
+        self.body.append(item)
+
+    def set_pointer(self, val: int = -1):
+        """
+        Sets the pointer to some value
+        :param val: integer
+        """
+
+        self.pointer = val
 
     def __repr__(self):
         match self.btype:
@@ -75,8 +121,25 @@ class Scope:
             case BType.SQUARE:
                 return f"[{self.body.__repr__()}]"
 
+    def __len__(self):
+        return self.body.__len__()
+
     def __iter__(self):
         return self.body.__iter__()
+
+    def __getitem__(self, item):
+        if isinstance(item, int):
+            return self.body[item]
+        raise TypeError
+
+    def __setitem__(self, key, value):
+        if isinstance(key, int):
+            self.body[key] = value
+        else:
+            raise TypeError
+
+    def __copy__(self):
+        return self.__class__(deepcopy(self.body), self.btype)
 
 
 class TScope(Scope):

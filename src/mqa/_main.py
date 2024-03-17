@@ -20,8 +20,10 @@ def code_compile(code: str):
 
     token_list = Tokenizer.tokenize(code)
     token_tree = Tokenizer.build_token_tree(token_list)
-    print(token_tree)
-    # output = Compiler.compile(token_tree)
+
+    compiler = Compiler()
+    output = compiler.compile(token_tree)
+    print(output)
 
     return [], []
 
