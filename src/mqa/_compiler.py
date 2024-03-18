@@ -68,6 +68,15 @@ class Compiler:
             elif token.token[-1] == ":":
                 self.tree[self.tree.pointer] = Label(token.token[:-1], token.traceback)
 
+    def process_keyword(self, keyword: str):
+        """
+        Processes keywords.
+        :param keyword: keyword that needs to be processed
+        :return: value after it's processed
+        """
+
+        pass
+
     def compile(self, tree: TScope, is_main=True) -> Any:
         """
         Main compile method for token scopes
@@ -122,6 +131,13 @@ class Compiler:
                 for idx, arg in enumerate(macro.args):
                     macro.replace(arg, macro_args[idx])
                 self.main.body += macro.body
+
+            # keyword
+            elif token.token in self.KEYWORDS:
+                self.process_keyword(token.token)
+
+            else:
+                raise NameError(f"Undefined instruction '{token.token}'")
 
         print()
 
