@@ -21,7 +21,7 @@ def code_compile(code: str):
     token_list = Tokenizer.tokenize(code)
     token_tree = Tokenizer.build_token_tree(token_list)
 
-    compiler = Compiler()
+    compiler = Compiler(parser_args=args)
     output = compiler.compile(token_tree)
     print(output)
 

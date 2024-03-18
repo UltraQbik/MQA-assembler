@@ -1,3 +1,4 @@
+from argparse import ArgumentParser
 from copy import deepcopy
 from ._asm_types import *
 from ._mqis import *
@@ -6,7 +7,7 @@ from ._mqis import *
 class Compiler:
     KEYWORDS: set[str] = {"FOR", "ASSIGN", "LEN", "ENUMERATE"}
 
-    def __init__(self):
+    def __init__(self, parser_args: ArgumentParser):
         """
         The main compiler class
         """
@@ -15,6 +16,8 @@ class Compiler:
         self.main: IScope = IScope(list(), BType.MISSING)
 
         self.macros: dict[str, dict[int, Macro]] = {}
+
+        self._parser = parser_args
 
     def process_macros_and_labels(self):
         """
