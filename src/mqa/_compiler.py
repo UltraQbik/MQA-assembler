@@ -4,6 +4,8 @@ from ._mqis import *
 
 
 class Compiler:
+    KEYWORDS: set[str] = {"FOR", "ASSIGN", "LEN", "ENUMERATE"}
+
     def __init__(self):
         """
         The main compiler class
