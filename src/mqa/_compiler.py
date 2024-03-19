@@ -101,7 +101,7 @@ class Compiler:
         """
 
         # check
-        if isinstance(args, TScope) and not isinstance(range_, list):
+        if not isinstance(args, TScope) and isinstance(range_, list):
             raise SyntaxError("Unable to unpack 1 value to multiple arguments")
 
         # create a sub-compiler
@@ -114,14 +114,14 @@ class Compiler:
         instruction_scope = IScope([], BType.MISSING)
 
         # string ranges
-        if isinstance(range_, Token) and range_.token[0] == range_.token[-1] in "\"\'":
-            for char in range_.token:
+        if isinstance(range_, Token) and range_.token[0] == range_.token[-1] == "\"":
+            for char in range_.token[1:-1]:
                 body_copy = deepcopy(compiled_body)
                 body_copy.replace(args.token, ord(char))
                 instruction_scope.unify(body_copy)
 
         # integer ranges
-        if isinstance(range_, Token):
+        elif isinstance(range_, Token):
             split_range = range_.token.split("..")
 
             # checks
@@ -201,6 +201,8 @@ class Compiler:
             if isinstance(range_, Token):
                 if range_.token in self.RETURNING_KEYWORDS:
                     range_ = self.process_keyword(range_.token)
+                elif range_.token[0] == range_.token[-1] == "\"":
+                    pass
                 elif range_.token.find("..") == -1:
                     try:
                         range_ = int(range_.token, base=0)
@@ -225,8 +227,8 @@ class Compiler:
             if not isinstance(arg, Token):
                 raise TypeError(f"Unable to return length of '{arg}'")
 
-            if arg.token[0] == arg.token[1] in "\"\'":
-                return Token(len(arg.token)-2, arg.traceback)
+            if arg.token[0] == arg.token[-1] == "\"":
+                return len(arg.token)-2
             raise TypeError("Unable to return length for a non string argument")
 
         # ENUMERATE
@@ -234,7 +236,7 @@ class Compiler:
             # fetch the next argument
             arg = self.tree.next()
 
-            if isinstance(arg, Token) and arg.token[0] == arg.token[1] in "\"\'":
+            if isinstance(arg, Token) and arg.token[0] == arg.token[-1] == "\"":
                 return list(enumerate(arg.token[1:-1]))
             else:
                 raise NotImplementedError(f"Unable to construct a sequence for {arg.__class__}")

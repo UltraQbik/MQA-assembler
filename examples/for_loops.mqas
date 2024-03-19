@@ -2,9 +2,9 @@
 
 _start:
     ; print the alphabet
-    FOR var IN 65..91 {
-        LRA var
-        UOC
+    FOR (var, char) IN ENUMERATE "Hell" {
+        LRA char
+        SRA var
     }
 
 _end:

@@ -80,7 +80,7 @@ class Tokenizer:
             # if a character is a quote
             elif char in "\"\'":
                 # add quote back, cuz too lazy to redo the compiler and tokens
-                token_str += char
+                token_str += "\""
 
                 if string_type == char or string_type == "":
                     # if there's an escape character before the quote
