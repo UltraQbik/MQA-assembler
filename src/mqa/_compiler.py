@@ -164,6 +164,8 @@ class Compiler:
         else:
             raise NotImplementedError("Something went wrong?")
 
+        return instruction_scope
+
     def process_keyword(self, keyword: str):
         """
         Processes keywords.
@@ -212,8 +214,7 @@ class Compiler:
                 raise SyntaxError("Expected a '{'")
 
             # append instructions to the list of instructions
-            for instruction in self.process_for_loop(args, range_, body):
-                self.main.append(instruction)
+            self.main.unify(self.process_for_loop(args, range_, body))
 
         # LEN
         elif keyword == "LEN":
