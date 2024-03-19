@@ -1,4 +1,4 @@
-from argparse import ArgumentParser
+from argparse import Namespace
 from copy import deepcopy
 from ._asm_types import *
 from ._mqis import *
@@ -8,7 +8,7 @@ class Compiler:
     KEYWORDS: set[str] = {"FOR", "ASSIGN", "LEN", "ENUMERATE"}
     RETURNING_KEYWORDS: set[str] = {"LEN", "ENUMERATE"}
 
-    def __init__(self, parser_args: ArgumentParser):
+    def __init__(self, parser_args: Namespace):
         """
         The main compiler class
         """
@@ -186,6 +186,18 @@ class Compiler:
                 to_assign = self.process_keyword(to_assign.token)
 
             self.define[arg.token] = to_assign
+
+            # replace token using the new assign
+            old_pointer = self.tree.pointer
+            while (token := self.tree.next()) is not None:
+                if not isinstance(token, Token):
+                    continue
+
+                if token == arg:
+                    self.tree.body[self.tree.pointer] = to_assign
+
+            # use old pointer
+            self.tree.pointer = old_pointer
 
         # for loop
         elif keyword == "FOR":
