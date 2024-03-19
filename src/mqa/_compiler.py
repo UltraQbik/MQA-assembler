@@ -204,6 +204,9 @@ class Compiler:
             # fetch the name(s) for the variable(s)
             args = self.tree.next()
 
+            if isinstance(args, TScope) and args.btype is not BType.ROUND:
+                raise SyntaxError("Expected a '('")
+
             # check IN keyword
             token = self.tree.next()
             if not (isinstance(token, Token) and token.token == "IN"):

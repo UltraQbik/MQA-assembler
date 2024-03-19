@@ -1,10 +1,10 @@
 ; basic test of a for loop
 
 _start:
-    ; print the alphabet
-    FOR (var, char) IN ENUMERATE "Hell" {
+    ASSIGN word "Hello World!"
+    FOR (idx, char) IN ENUMERATE word {
         LRA char
-        SRA var
+        SRA idx
     }
 
 _end:
