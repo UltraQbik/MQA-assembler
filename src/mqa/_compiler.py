@@ -6,6 +6,7 @@ from ._mqis import *
 
 class Compiler:
     KEYWORDS: set[str] = {"FOR", "ASSIGN", "LEN", "ENUMERATE"}
+    RETURNING_KEYWORDS: set[str] = {"LEN", "ENUMERATE"}
 
     def __init__(self, parser_args: ArgumentParser):
         """
@@ -16,6 +17,7 @@ class Compiler:
         self.main: IScope = IScope(list(), BType.MISSING)
 
         self.macros: dict[str, dict[int, Macro]] = {}
+        self.define: dict[str, Token] = {}
 
         self._parser = parser_args
 
@@ -59,8 +61,14 @@ class Compiler:
                 if len(macro_args) in self.macros[macro_name]:
                     print("WARN: macro redefinition")
 
-                sub_compiler = Compiler()
-                sub_compiler.macros = deepcopy(self.macros)
+                # initiate a sub-compiler class for a macro
+                sub_compiler = Compiler(self._parser)
+
+                # carry macros and defines inside
+                sub_compiler.macros.update(deepcopy(self.macros))
+                sub_compiler.define.update(deepcopy(self.define))
+
+                # create a macro
                 self.macros[macro_name][len(macro_args)] = Macro(
                     sub_compiler.compile(macro_body, False),
                     BType.MISSING,
@@ -91,7 +99,17 @@ class Compiler:
 
         # assign
         if keyword == "ASSIGN":
-            pass
+            arg = self.tree.next()
+
+            # check
+            if not isinstance(arg, Token):
+                raise NotImplementedError("Only string assignments are allowed")
+
+            to_assign = self.tree.next()
+            if isinstance(to_assign, Token) and to_assign.token in self.RETURNING_KEYWORDS:
+                to_assign = self.process_keyword(to_assign.token)
+
+            self.define[arg.token] = to_assign
 
         # for loop
         elif keyword == "FOR":
@@ -110,16 +128,29 @@ class Compiler:
             if not (isinstance(body, TScope) and body.btype is BType.CURVED):
                 raise SyntaxError("Expected a '{'")
 
-            for instruction in self.process_for_loop(args, range_):
+            for instruction in self.process_for_loop(args, range_, body):
                 self.main.append(instruction)
 
         # LEN
         elif keyword == "LEN":
-            pass
+            arg = self.tree.next()
+
+            # checks
+            if not isinstance(arg, Token):
+                raise TypeError(f"Unable to return length of '{arg}'")
+
+            if arg.token[0] == arg.token[1] in "\"\'":
+                return Token(len(arg.token)-2, arg.traceback)
+            raise TypeError("Unable to return length for a non string argument")
 
         # ENUMERATE
         elif keyword == "ENUMERATE":
-            pass
+            arg = self.tree.next()
+
+            if isinstance(arg, Token) and arg.token[0] == arg.token[1] in "\"\'":
+                return list(enumerate(arg.token[1:-1]))
+            else:
+                raise NotImplementedError(f"Unable to construct a sequence for {arg.__class__}")
 
         else:
             raise NotImplementedError(f"Keyword '{keyword}' is not yet implemented")
