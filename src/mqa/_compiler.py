@@ -314,9 +314,13 @@ class Compiler:
                     self.main.append(
                         Instruction("LRA", acc_value, tb=keyword.traceback))
 
+                # NOTE: the address will exceed 8bit integer limit,
+                # but it will be fixed in the next step of compilation
+                address = item[0] + pointer
+
                 # append store instruction
                 self.main.append(
-                    Instruction("SRA", item[0], tb=keyword.traceback))
+                    Instruction("SRA", address, tb=keyword.traceback))
 
         else:
             raise NotImplementedError(f"Keyword '{keyword.token}' is not yet implemented")
