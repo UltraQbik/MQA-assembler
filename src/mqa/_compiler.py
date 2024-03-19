@@ -129,7 +129,7 @@ class Compiler:
         compiled_body: IScope = sub_compiler.compile(body, False)
 
         # TODO: make optimized for memory version
-        instruction_scope = IScope([], BType.MISSING)
+        instruction_scope = IScope(list(), BType.MISSING)
 
         # string ranges
         if isinstance(range_, Token) and range_.token[0] == range_.token[-1] == "\"":
@@ -367,8 +367,8 @@ class Compiler:
                 while (itoken := self.tree.next()).token != "\n":
                     instruction_word.append(itoken)
                 self.main.append(Instruction(
-                    instruction_word[0],
-                    instruction_word[1] if len(instruction_word) > 1 else Token('0', token.traceback)
+                    instruction_word[0].token,
+                    instruction_word[1].token if len(instruction_word) > 1 else 0
                 ))
 
             # macros
@@ -386,14 +386,50 @@ class Compiler:
 
                 macro = deepcopy(self.macros[macro_name.token][len(macro_args)])
                 for idx, arg in enumerate(macro.args):
-                    macro.replace(arg, macro_args[idx])
+                    macro.replace(arg.token, macro_args[idx].token)
                 self.main.body += macro.body
 
-            # keyword
+            # keywords
             elif token.token in self.KEYWORDS:
                 self.process_keyword(token)
 
             else:
                 raise NameError(f"Undefined instruction '{token.token}'")
+
+        # sub-scopes are done here
+        if not is_main:
+            return deepcopy(self.main)
+
+        # label table
+        self.labels = {}
+        while (instruction := self.main.next()) is not None:
+            if isinstance(instruction, Label):
+                lbl = self.main.pop()
+                self.labels[id(lbl)] = self.main.pointer
+
+        # process instruction arguments
+        for instruction in self.main:
+            # already processed ints
+            if isinstance(instruction.value, int | Label):
+                continue
+
+            # pointers
+            elif instruction.value[0] == "$":
+                # try to convert string integer to normal integer
+                try:
+                    instruction.value = int(instruction.value[1:], base=0)
+                except ValueError:
+                    raise ValueError("Incorrect pointer value")
+
+                # set memory flag to be true (as this is a pointer)
+                instruction.flag = True
+
+            # generic string integers
+            else:
+                # try to convert string integer to normal integer
+                try:
+                    instruction.value = int(instruction.value, base=0)
+                except ValueError:
+                    raise ValueError("Incorrect integer value")
 
         return deepcopy(self.main)

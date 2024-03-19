@@ -59,8 +59,14 @@ class Instruction:
         """
 
         self.opcode: str = opcode if not isinstance(opcode, Token) else opcode.token
-        self.value: Any = value if value is not None else 0
         self.flag = memory_flag
+
+        if isinstance(value, Token) and not isinstance(value, Label):
+            self.value = value.token
+        elif value is None:
+            self.value = 0
+        else:
+            self.value = value
 
         self._traceback = tb
 
@@ -97,13 +103,15 @@ class Scope:
             return None
         return self.body[self.pointer]
 
-    def pop(self) -> Any:
+    def pop(self, index=None) -> Any:
         """
         Pops next item on the list
         :return: next item on the list
         """
 
-        return self.body.pop(self.pointer)
+        if index is None:
+            return self.body.pop(self.pointer)
+        return self.body.pop(index)
 
     def append(self, item) -> None:
         """
