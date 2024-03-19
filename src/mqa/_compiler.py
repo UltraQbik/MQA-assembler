@@ -1,11 +1,19 @@
+import importlib.util
 from argparse import Namespace
 from copy import deepcopy
 from ._asm_types import *
 from ._mqis import *
 
 
+# all known packages
+# TODO: add the ability to fetch package list directly from MQE package
+AVAILABLE_PACKAGES: set[str] = {
+    "FileManager"
+}
+
+
 class Compiler:
-    KEYWORDS: set[str] = {"FOR", "ASSIGN", "LEN", "ENUMERATE"}
+    KEYWORDS: set[str] = {"FOR", "ASSIGN", "LEN", "ENUMERATE", "INCLUDE", "__WRITE_STR__"}
     RETURNING_KEYWORDS: set[str] = {"LEN", "ENUMERATE"}
 
     def __init__(self, parser_args: Namespace):
@@ -15,6 +23,7 @@ class Compiler:
 
         self.tree: TScope | None = None
         self.main: IScope = IScope(list(), BType.MISSING)
+        self.includes: list[str] = list()
 
         self.labels: dict = {}
         self.macros: dict[str, dict[int, Macro]] = {}
@@ -256,6 +265,20 @@ class Compiler:
             else:
                 raise NotImplementedError(f"Unable to construct a sequence for {arg.__class__}")
 
+        # INCLUDE
+        elif keyword == "INCLUDE":
+            # package name
+            arg = self.tree.next()
+
+            if not isinstance(arg, Token):
+                raise SyntaxError("Incorrect package name")
+
+            if arg.token not in AVAILABLE_PACKAGES:
+                print(f"WARN: included package '{arg.token}' is not recognized by current version of the compiler")
+
+            # append the included package name
+            self.includes.append(arg.token)
+
         else:
             raise NotImplementedError(f"Keyword '{keyword}' is not yet implemented")
 
@@ -320,7 +343,5 @@ class Compiler:
 
             else:
                 raise NameError(f"Undefined instruction '{token.token}'")
-
-        print()
 
         return deepcopy(self.main)

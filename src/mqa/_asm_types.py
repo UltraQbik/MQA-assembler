@@ -177,6 +177,10 @@ class IScope(Scope):
         """
 
         for instruction in self.body:
+            # skip labels
+            if isinstance(instruction, Label):
+                continue
+
             if instruction.value == old:
                 instruction.value = new
         return self

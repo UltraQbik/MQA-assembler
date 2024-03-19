@@ -24,7 +24,6 @@ def code_compile(code: str):
     compiler = Compiler(parser_args=args)
     output = compiler.compile(token_tree)
     print(output)
-    print(compiler.define)
 
     return [], []
 
