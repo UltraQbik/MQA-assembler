@@ -71,6 +71,16 @@ class Compiler:
             elif token.token[-1] == ":":
                 self.tree[self.tree.pointer] = Label(token.token[:-1], token.traceback)
 
+    def process_for_loop(self, args: Token | TScope, range_: Token) -> IScope:
+        """
+        Processes the for loop.
+        :param args: argument / arguments that will be used in a for loop
+        :param range_: range that will be applied to 'args'
+        :returns: instruction scope
+        """
+
+        pass
+
     def process_keyword(self, keyword: str):
         """
         Processes keywords.
@@ -78,7 +88,36 @@ class Compiler:
         :return: value after it's processed
         """
 
-        pass
+        # assign
+        if keyword == "ASSIGN":
+            pass
+
+        # for loop
+        elif keyword == "FOR":
+            args = self.tree.next()
+
+            # check IN keyword
+            token = self.tree.next()
+            if not (isinstance(token, Token) and token.token == "IN"):
+                raise SyntaxError("Incorrect for loop define")
+
+            range_ = self.tree.next()
+            if not isinstance(range_, Token):
+                raise SyntaxError("Incorrect for loop range")
+
+            for instruction in self.process_for_loop(args, range_):
+                self.main.append(instruction)
+
+        # LEN
+        elif keyword == "LEN":
+            pass
+
+        # ENUMERATE
+        elif keyword == "ENUMERATE":
+            pass
+
+        else:
+            raise NotImplementedError(f"Keyword '{keyword}' is not yet implemented")
 
     def compile(self, tree: TScope, is_main=True) -> Any:
         """
