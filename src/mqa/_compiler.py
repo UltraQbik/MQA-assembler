@@ -125,7 +125,7 @@ class Compiler:
             split_range = range_.token.split("..")
 
             # checks
-            if len(split_range) >= 2:
+            if len(split_range) > 2:
                 raise SyntaxError("Incorrectly defined range")
 
             try:
@@ -134,7 +134,7 @@ class Compiler:
             except ValueError:
                 raise SyntaxError("Unable to convert an integer range number")
 
-            if range_start > range_end:
+            if range_start < range_end:
                 range__ = range(range_start, range_end)
             else:
                 range__ = range(range_start - 1, range_end - 1, -1)

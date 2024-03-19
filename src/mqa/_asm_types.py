@@ -31,6 +31,8 @@ class Token:
     def __eq__(self, other):
         if isinstance(other, Token):
             return self.token == other.token
+        elif isinstance(other, str):
+            return self.token == other
         return False
 
     def __repr__(self):
