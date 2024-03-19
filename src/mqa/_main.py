@@ -23,7 +23,11 @@ def code_compile(code: str):
 
     compiler = Compiler(parser_args=args)
     output = compiler.compile(token_tree)
-    print(output)
+
+    print("Instructions:")
+    for instruction in output:
+        print(f"\t{instruction}")
+    print("End.")
 
     return [], []
 

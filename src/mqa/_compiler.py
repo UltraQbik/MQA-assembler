@@ -38,8 +38,8 @@ class Compiler:
 
         self.tree.set_ptr()
         while (token := self.tree.next()) is not None:
-            # skip sub-scopes
-            if isinstance(token, TScope):
+            # skip sub-scopes and labels
+            if isinstance(token, TScope | Label):
                 continue
 
             # macros
@@ -83,7 +83,16 @@ class Compiler:
 
             # labels
             elif token.token[-1] == ":":
-                self.tree[self.tree.pointer] = Label(token.token[:-1], token.traceback)
+                lbl = Label(token.token[:-1], token.traceback)
+                self.tree[self.tree.pointer] = lbl
+
+                # replace all existing labels in a scope
+                for idx, t in enumerate(self.tree):
+                    if isinstance(t, TScope | Label):
+                        continue
+
+                    if t.token[1:] == self.tree[self.tree.pointer]:
+                        self.tree[idx] = Label(lbl, t.traceback)
 
     def make_sub_compiler(self):
         """
