@@ -71,11 +71,12 @@ class Compiler:
             elif token.token[-1] == ":":
                 self.tree[self.tree.pointer] = Label(token.token[:-1], token.traceback)
 
-    def process_for_loop(self, args: Token | TScope, range_: Token) -> IScope:
+    def process_for_loop(self, args: Token | TScope, range_: Token, body: TScope) -> IScope:
         """
         Processes the for loop.
         :param args: argument / arguments that will be used in a for loop
         :param range_: range that will be applied to 'args'
+        :param body: body of the for loop
         :returns: instruction scope
         """
 
@@ -104,6 +105,10 @@ class Compiler:
             range_ = self.tree.next()
             if not isinstance(range_, Token):
                 raise SyntaxError("Incorrect for loop range")
+
+            body = self.tree.next()
+            if not (isinstance(body, TScope) and body.btype is BType.CURVED):
+                raise SyntaxError("Expected a '{'")
 
             for instruction in self.process_for_loop(args, range_):
                 self.main.append(instruction)
