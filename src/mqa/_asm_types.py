@@ -115,6 +115,12 @@ class Scope:
 
         self.pointer = val
 
+    def unify(self, other):
+        if isinstance(other, Scope):
+            self.body += other.body
+        else:
+            raise TypeError("No.")
+
     def __repr__(self):
         match self.btype:
             case BType.MISSING:

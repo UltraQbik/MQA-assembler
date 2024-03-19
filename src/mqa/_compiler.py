@@ -16,6 +16,7 @@ class Compiler:
         self.tree: TScope | None = None
         self.main: IScope = IScope(list(), BType.MISSING)
 
+        self.labels: dict = {}
         self.macros: dict[str, dict[int, Macro]] = {}
         self.define: dict[str, Token] = {}
 
@@ -62,11 +63,7 @@ class Compiler:
                     print("WARN: macro redefinition")
 
                 # initiate a sub-compiler class for a macro
-                sub_compiler = Compiler(self._parser)
-
-                # carry macros and defines inside
-                sub_compiler.macros.update(deepcopy(self.macros))
-                sub_compiler.define.update(deepcopy(self.define))
+                sub_compiler = self.make_sub_compiler()
 
                 # create a macro
                 self.macros[macro_name][len(macro_args)] = Macro(
@@ -79,7 +76,22 @@ class Compiler:
             elif token.token[-1] == ":":
                 self.tree[self.tree.pointer] = Label(token.token[:-1], token.traceback)
 
-    def process_for_loop(self, args: Token | TScope, range_: Token, body: TScope) -> IScope:
+    def make_sub_compiler(self):
+        """
+        Creates a copy of itself
+        """
+
+        # initiate a sub-compiler class for a macro
+        sub_compiler = Compiler(self._parser)
+
+        # carry labels, macros and defines inside
+        sub_compiler.labels.update(deepcopy(self.labels))
+        sub_compiler.macros.update(deepcopy(self.macros))
+        sub_compiler.define.update(deepcopy(self.define))
+
+        return sub_compiler
+
+    def process_for_loop(self, args: Token | TScope, range_: Token | int | list[tuple], body: TScope) -> IScope:
         """
         Processes the for loop.
         :param args: argument / arguments that will be used in a for loop
@@ -88,7 +100,69 @@ class Compiler:
         :returns: instruction scope
         """
 
-        pass
+        # check
+        if isinstance(args, TScope) and not isinstance(range_, list):
+            raise SyntaxError("Unable to unpack 1 value to multiple arguments")
+
+        # create a sub-compiler
+        sub_compiler = self.make_sub_compiler()
+
+        # compile the body
+        compiled_body: IScope = sub_compiler.compile(body, False)
+
+        # TODO: make optimized for memory version
+        instruction_scope = IScope([], BType.MISSING)
+
+        # string ranges
+        if isinstance(range_, Token) and range_.token[0] == range_.token[-1] in "\"\'":
+            for char in range_.token:
+                body_copy = deepcopy(compiled_body)
+                body_copy.replace(args.token, ord(char))
+                instruction_scope.unify(body_copy)
+
+        # integer ranges
+        if isinstance(range_, Token):
+            split_range = range_.token.split("..")
+
+            # checks
+            if len(split_range) >= 2:
+                raise SyntaxError("Incorrectly defined range")
+
+            try:
+                range_start = int(split_range[0], base=0)
+                range_end = int(split_range[1], base=0)
+            except ValueError:
+                raise SyntaxError("Unable to convert an integer range number")
+
+            if range_start > range_end:
+                range__ = range(range_start, range_end)
+            else:
+                range__ = range(range_start - 1, range_end - 1, -1)
+
+            for i in range__:
+                body_copy = deepcopy(compiled_body)
+                body_copy.replace(args.token, i)
+                instruction_scope.unify(body_copy)
+
+        # single integer range
+        elif isinstance(range_, int):
+            for i in range(range_):
+                body_copy = deepcopy(compiled_body)
+                body_copy.replace(args.token, i)
+                instruction_scope.unify(body_copy)
+
+        # enumerate
+        elif isinstance(range_, list) and isinstance(args, TScope):
+            # yes, we assume there are only 2 args
+            for idx, char in range_:
+                body_copy = deepcopy(compiled_body)
+
+                body_copy.replace(args[0].token, idx)
+                body_copy.replace(args[1].token, ord(char))
+
+                instruction_scope.unify(body_copy)
+        else:
+            raise NotImplementedError("Something went wrong?")
 
     def process_keyword(self, keyword: str):
         """
@@ -113,6 +187,7 @@ class Compiler:
 
         # for loop
         elif keyword == "FOR":
+            # fetch the name(s) for the variable(s)
             args = self.tree.next()
 
             # check IN keyword
@@ -121,18 +196,28 @@ class Compiler:
                 raise SyntaxError("Incorrect for loop define")
 
             range_ = self.tree.next()
-            if not isinstance(range_, Token):
+            if isinstance(range_, Token):
+                if range_.token in self.RETURNING_KEYWORDS:
+                    range_ = self.process_keyword(range_.token)
+                elif range_.token.find("..") == -1:
+                    try:
+                        range_ = int(range_.token, base=0)
+                    except ValueError:
+                        raise ValueError("Unable to convert single value range")
+            else:
                 raise SyntaxError("Incorrect for loop range")
 
             body = self.tree.next()
             if not (isinstance(body, TScope) and body.btype is BType.CURVED):
                 raise SyntaxError("Expected a '{'")
 
+            # append instructions to the list of instructions
             for instruction in self.process_for_loop(args, range_, body):
                 self.main.append(instruction)
 
         # LEN
         elif keyword == "LEN":
+            # fetch the next argument
             arg = self.tree.next()
 
             # checks
@@ -145,6 +230,7 @@ class Compiler:
 
         # ENUMERATE
         elif keyword == "ENUMERATE":
+            # fetch the next argument
             arg = self.tree.next()
 
             if isinstance(arg, Token) and arg.token[0] == arg.token[1] in "\"\'":
