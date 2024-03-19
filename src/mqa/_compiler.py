@@ -175,7 +175,7 @@ class Compiler:
 
         return instruction_scope
 
-    def process_keyword(self, keyword: str):
+    def process_keyword(self, keyword: Token):
         """
         Processes keywords.
         :param keyword: keyword that needs to be processed
@@ -183,7 +183,7 @@ class Compiler:
         """
 
         # assign
-        if keyword == "ASSIGN":
+        if keyword.token == "ASSIGN":
             arg = self.tree.next()
 
             # check
@@ -209,7 +209,7 @@ class Compiler:
             self.tree.pointer = old_pointer
 
         # for loop
-        elif keyword == "FOR":
+        elif keyword.token == "FOR":
             # fetch the name(s) for the variable(s)
             args = self.tree.next()
 
@@ -243,7 +243,7 @@ class Compiler:
             self.main.unify(self.process_for_loop(args, range_, body))
 
         # LEN
-        elif keyword == "LEN":
+        elif keyword.token == "LEN":
             # fetch the next argument
             arg = self.tree.next()
 
@@ -256,7 +256,7 @@ class Compiler:
             raise TypeError("Unable to return length for a non string argument")
 
         # ENUMERATE
-        elif keyword == "ENUMERATE":
+        elif keyword.token == "ENUMERATE":
             # fetch the next argument
             arg = self.tree.next()
 
@@ -266,7 +266,7 @@ class Compiler:
                 raise NotImplementedError(f"Unable to construct a sequence for {arg.__class__}")
 
         # INCLUDE
-        elif keyword == "INCLUDE":
+        elif keyword.token == "INCLUDE":
             # package name
             arg = self.tree.next()
 
@@ -279,8 +279,47 @@ class Compiler:
             # append the included package name
             self.includes.append(arg.token)
 
+        # __WRITE_STR__
+        elif keyword.token == "__WRITE_STR__":
+            # get arguments for a built-in function
+            pointer = self.tree.next()
+            string = self.tree.next()
+
+            # checks
+            if not isinstance(pointer, Token):
+                raise TypeError(f"Incorrect type '{pointer.__class__}'")
+            if not isinstance(string, Token):
+                raise TypeError(f"Incorrect type '{string.__class__}")
+
+            try:
+                pointer = int(pointer.token, base=0)
+            except ValueError:
+                raise TypeError("Incorrect argument")
+
+            if not (string.token[0] == string.token[-1] == "\""):
+                raise TypeError("Incorrect argument")
+
+            sorted_string = [(x, ord(y)) for x, y in enumerate(string.token[1:-1])]
+            sorted_string.sort(key=lambda x: x[1])
+
+            # just ignore empty strings
+            if len(sorted_string) == 0:
+                return
+
+            acc_value = -1
+            for item in sorted_string:
+                # if the character in ACC is different
+                if acc_value != item[1]:
+                    acc_value = item[1]
+                    self.main.append(
+                        Instruction("LRA", acc_value, tb=keyword.traceback))
+
+                # append store instruction
+                self.main.append(
+                    Instruction("SRA", item[0], tb=keyword.traceback))
+
         else:
-            raise NotImplementedError(f"Keyword '{keyword}' is not yet implemented")
+            raise NotImplementedError(f"Keyword '{keyword.token}' is not yet implemented")
 
     def compile(self, tree: TScope, is_main=True) -> Any:
         """
@@ -339,7 +378,7 @@ class Compiler:
 
             # keyword
             elif token.token in self.KEYWORDS:
-                self.process_keyword(token.token)
+                self.process_keyword(token)
 
             else:
                 raise NameError(f"Undefined instruction '{token.token}'")

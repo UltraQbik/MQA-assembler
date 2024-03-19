@@ -44,9 +44,12 @@ class Label(Token):
     Special kind of token
     """
 
+    def __repr__(self):
+        return f"@{self.token}"
+
 
 class Instruction:
-    def __init__(self, opcode: str, value: Any | None = None, memory_flag: bool = False, tb: int = 0):
+    def __init__(self, opcode: str | Token, value: Any | None = None, memory_flag: bool = False, tb: int = 0):
         """
         An instruction word
         :param opcode: assembly mnemonic
@@ -55,8 +58,8 @@ class Instruction:
         :param tb: traceback line
         """
 
-        self.opcode: str = opcode
-        self.value: int = value if value is not None else 0
+        self.opcode: str = opcode if not isinstance(opcode, Token) else opcode.token
+        self.value: Any = value if value is not None else 0
         self.flag = memory_flag
 
         self._traceback = tb

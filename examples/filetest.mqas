@@ -50,10 +50,7 @@ end:
 
 _start:
     ASSIGN name "LICENSE"
-    FOR (idx, char) IN ENUMERATE name {
-        LRA char
-        SRA idx
-    }
+    __WRITE_STR__ 0 name
 
     ; read the file
     file_read(0, 0, 0, 0)
