@@ -1,6 +1,4 @@
-import importlib.util
 from argparse import Namespace
-from copy import deepcopy
 from ._asm_types import *
 from ._mqis import *
 
@@ -91,6 +89,7 @@ class Compiler:
                     if isinstance(t, TScope | Label):
                         continue
 
+                    t: Token
                     if t.token[1:] == self.tree[self.tree.pointer]:
                         self.tree[idx] = Label(lbl, t.traceback)
 
@@ -133,6 +132,7 @@ class Compiler:
 
         # string ranges
         if isinstance(range_, Token) and range_.token[0] == range_.token[-1] == "\"":
+            args: Token
             for char in range_.token[1:-1]:
                 body_copy = deepcopy(compiled_body)
                 body_copy.replace(args.token, ord(char))
@@ -157,6 +157,7 @@ class Compiler:
             else:
                 range__ = range(range_start - 1, range_end - 1, -1)
 
+            args: Token
             for i in range__:
                 body_copy = deepcopy(compiled_body)
                 body_copy.replace(args.token, i)
@@ -164,6 +165,7 @@ class Compiler:
 
         # single integer range
         elif isinstance(range_, int):
+            args: Token
             for i in range(range_):
                 body_copy = deepcopy(compiled_body)
                 body_copy.replace(args.token, i)
@@ -385,6 +387,7 @@ class Compiler:
                     raise NameError(f"Undefined macro {macro_name}")
 
                 macro = deepcopy(self.macros[macro_name.token][len(macro_args)])
+                arg: Token
                 for idx, arg in enumerate(macro.args):
                     macro.replace(arg.token, macro_args[idx].token)
                 self.main.body += macro.body
@@ -425,11 +428,15 @@ class Compiler:
                 instruction.flag = True
 
             # generic string integers
-            else:
+            elif isinstance(instruction.value, str):
                 # try to convert string integer to normal integer
                 try:
                     instruction.value = int(instruction.value, base=0)
                 except ValueError:
                     raise ValueError("Incorrect integer value")
+
+            # something went wrong
+            else:
+                raise Exception("Something went wrong")
 
         return deepcopy(self.main)
