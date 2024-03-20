@@ -442,6 +442,9 @@ class Compiler:
         # optimize instructions
         self.optimize_instructions()
 
+        # place all the labels
+        self.place_labels()
+
         return deepcopy(self.main)
 
     def optimize_instructions(self):
@@ -478,4 +481,18 @@ class Compiler:
                 no_modify = False
 
         # return back
-        self.main.pointer = old_ptr
+        self.main.set_ptr(old_ptr)
+
+    def place_labels(self):
+        """
+        Places pointers in correct places
+        """
+
+        # save the old pointer value
+        old_ptr = self.main.pointer
+        self.main.set_ptr()
+
+        while (instruction := self.main.next()) is not None:
+            pass
+
+        self.main.set_ptr(old_ptr)
