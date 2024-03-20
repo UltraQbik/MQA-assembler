@@ -201,7 +201,7 @@ class Compiler:
 
             to_assign = self.tree.next()
             if isinstance(to_assign, Token) and to_assign.token in self.RETURNING_KEYWORDS:
-                to_assign = self.process_keyword(to_assign.token)
+                to_assign = self.process_keyword(to_assign)
 
             self.define[arg.token] = to_assign
 
@@ -233,7 +233,7 @@ class Compiler:
             range_ = self.tree.next()
             if isinstance(range_, Token):
                 if range_.token in self.RETURNING_KEYWORDS:
-                    range_ = self.process_keyword(range_.token)
+                    range_ = self.process_keyword(range_)
                 elif range_.token[0] == range_.token[-1] == "\"":
                     pass
                 elif range_.token.find("..") == -1:
