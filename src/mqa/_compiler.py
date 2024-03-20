@@ -439,4 +439,43 @@ class Compiler:
             else:
                 raise Exception("Something went wrong")
 
+        # optimize instructions
+        self.optimize_instructions()
+
         return deepcopy(self.main)
+
+    def optimize_instructions(self):
+        """
+        Optimizes away unnecessary instructions
+        """
+
+        # value in accumulator
+        acc = 0
+
+        # is the instruction non-modifying
+        no_modify = True
+
+        # save the old pointer value
+        old_ptr = self.main.pointer
+        self.main.set_ptr()
+
+        while (instruction := self.main.next()) is not None:
+            if instruction.opcode == "LRA":
+                # if there are no modifying instructions before previous load
+                # remove this instruction
+                if acc == instruction.value and no_modify:
+                    self.main.pop()
+
+                # update the value in the accumulator
+                acc = instruction.value
+
+                # update no_modify
+                no_modify = True
+
+            # if the instruction is not in the list of non modifying instructions
+            elif instruction.opcode not in InstructionSet.non_modifying_instructions:
+                # then set no_modify to be false, as the ACC may change
+                no_modify = False
+
+        # return back
+        self.main.pointer = old_ptr
