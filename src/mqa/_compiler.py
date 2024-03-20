@@ -23,7 +23,7 @@ class Compiler:
         self.main: IScope = IScope(list(), BType.MISSING)
         self.includes: list[str] = list()
 
-        self.labels: dict = {}
+        self.labels: dict[int, int] = {}
         self.macros: dict[str, dict[int, Macro]] = {}
         self.define: dict[str, Token] = {}
 
@@ -483,16 +483,42 @@ class Compiler:
         # return back
         self.main.set_ptr(old_ptr)
 
+    def shift_labels(self, index: int | None = None, offset: int = 1):
+        """
+        Shifts labels by given offset
+        :param index: from which index to shift (default is self.main.pointer)
+        :param offset: amount by which to shift (default is 1)
+        """
+
+        if index is None:
+            index = self.main.pointer
+
+        for lbl_id, lbl_idx in self.labels.items():
+            if lbl_idx > index:
+                self.labels[lbl_id] += offset
+
     def place_labels(self):
         """
         Places pointers in correct places
         """
 
-        # save the old pointer value
+        # save old pointer value
         old_ptr = self.main.pointer
         self.main.set_ptr()
 
-        while (instruction := self.main.next()) is not None:
-            pass
+        # pointer values
+        pointers: dict[int, list[int]] = {}
+        for lbl_id, lbl_idx in self.labels.items():
+            pointers[lbl_id] = [lbl_idx]
 
+        # go through list of instructions, and find those which have labels as arguments
+        while (instruction := self.main.next()) is not None:
+            # if it's not a label, skip
+            if not isinstance(instruction.value, Label):
+                continue
+
+            # replace label with a pointer
+            instruction.value = pointers[id(instruction.value)]
+
+        # get old pointer value
         self.main.set_ptr(old_ptr)
