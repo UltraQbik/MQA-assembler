@@ -53,10 +53,10 @@ _start:
     __WRITE_STR__ 0 name
 
     ; read the file
-    file_read(0, 0, 0, 0)
+    file_read(0, 0, 39, 0)
 
     ; print the file
-    print(0b1_0000_0000)
+    print(0)
 
 _end:
     HALT

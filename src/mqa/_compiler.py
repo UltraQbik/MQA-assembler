@@ -23,9 +23,9 @@ class Compiler:
         self.main: IScope = IScope(list(), BType.MISSING)
         self.includes: list[str] = list()
 
-        self.labels: dict[int, int] = {}
-        self.macros: dict[str, dict[int, Macro]] = {}
-        self.define: dict[str, Token] = {}
+        self.labels: dict[int, Pointer] = dict()
+        self.macros: dict[str, dict[int, Macro]] = dict()
+        self.define: dict[str, Token] = dict()
 
         self._parser = parser_args
 
@@ -350,7 +350,7 @@ class Compiler:
         # process macros and labels
         self.process_macros_and_labels()
 
-        print(self.tree)
+        # print(self.tree)
 
         self.tree.set_ptr()
         while (token := self.tree.next()) is not None:
@@ -403,21 +403,14 @@ class Compiler:
         if not is_main:
             return deepcopy(self.main)
 
-        # label table
-        self.labels = {}
-        while (instruction := self.main.next()) is not None:
-            if isinstance(instruction, Label):
-                lbl = self.main.pop()
-                self.labels[id(lbl)] = self.main.pointer
-
         # process instruction arguments
         for instruction in self.main:
-            # already processed ints
-            if isinstance(instruction.value, int | Label):
+            # already processed ints and labels
+            if isinstance(instruction, Label) or isinstance(instruction.value, int | Label):
                 continue
 
             # pointers
-            elif instruction.value[0] == "$":
+            if instruction.value[0] == "$":
                 # try to convert string integer to normal integer
                 try:
                     instruction.value = int(instruction.value[1:], base=0)
@@ -463,6 +456,10 @@ class Compiler:
         self.main.set_ptr()
 
         while (instruction := self.main.next()) is not None:
+            # skip labels
+            if isinstance(instruction, Label):
+                continue
+
             if instruction.opcode == "LRA":
                 # if there are no modifying instructions before previous load
                 # remove this instruction
@@ -483,19 +480,19 @@ class Compiler:
         # return back
         self.main.set_ptr(old_ptr)
 
-    def shift_labels(self, index: int | None = None, offset: int = 1):
+    def shift_labels(self, offset: int = 1, index: int | None = None):
         """
         Shifts labels by given offset
-        :param index: from which index to shift (default is self.main.pointer)
         :param offset: amount by which to shift (default is 1)
+        :param index: from which index to shift (default is self.main.pointer)
         """
 
         if index is None:
             index = self.main.pointer
 
         for lbl_id, lbl_idx in self.labels.items():
-            if lbl_idx > index:
-                self.labels[lbl_id] += offset
+            if lbl_idx.value > index:
+                self.labels[lbl_id].value += offset
 
     def place_labels(self):
         """
@@ -506,10 +503,15 @@ class Compiler:
         old_ptr = self.main.pointer
         self.main.set_ptr()
 
-        # pointer values
-        pointers: dict[int, list[int]] = {}
-        for lbl_id, lbl_idx in self.labels.items():
-            pointers[lbl_id] = [lbl_idx]
+        # label table
+        self.labels = {}
+        while (instruction := self.main.next()) is not None:
+            if isinstance(instruction, Label):
+                lbl = self.main.pop()
+                self.labels[id(lbl)] = Pointer(self.main.pointer)
+
+        # reset pointer
+        self.main.set_ptr()
 
         # go through list of instructions, and find those which have labels as arguments
         while (instruction := self.main.next()) is not None:
@@ -518,7 +520,44 @@ class Compiler:
                 continue
 
             # replace label with a pointer
-            instruction.value = pointers[id(instruction.value)]
+            instruction.value = self.labels[id(instruction.value)]
+
+        # reset pointer
+        self.main.set_ptr()
+
+        # ROM page
+        rom_page = 0
+        new_rom_page = 0
+
+        while (instruction := self.main.next()) is not None:
+            # check if the instruction is a jump of some kind
+            if instruction.opcode in ["JMP", "JMPP", "JMPZ", "JMPN", "JMPC", "CALL"]:
+                if isinstance(instruction.value, Pointer):
+                    new_rom_page = instruction.value.value >> 8
+                else:
+                    print("WARN: don't use static jump pointers, as this may cause problems")
+                    new_rom_page = instruction.value >> 8
+
+            # check for manual rom page change instructions
+            elif instruction.opcode == "CRP":
+                new_rom_page = instruction.value >> 8
+
+            # check that the new rom page does not exceed 16 bit limit (upper 8 bits)
+            if new_rom_page > 255:
+                raise ResourceWarning("Jump index exceeds 16 bit integer limit")
+
+            # if the new rom page is not equal to current one
+            if rom_page != new_rom_page:
+                self.main.insert(
+                    self.main.pointer,
+                    Instruction("CRP", new_rom_page, False))
+                self.shift_labels()
+
+        # make everything integer
+        for instruction in self.main:
+            # replace pointer with just integer
+            if isinstance(instruction.value, Pointer):
+                instruction.value = instruction.value.value
 
         # get old pointer value
         self.main.set_ptr(old_ptr)

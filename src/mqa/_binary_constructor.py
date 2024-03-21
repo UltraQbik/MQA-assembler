@@ -52,7 +52,9 @@ class Constructor:
         # assemblySectionData
         for instruction in instruction_list:
             # make instruction one 16 bit value
-            value = (instruction.flag << 15) + (instruction.value << 7) + instruction.opcode
+            value = instruction.flag << 15
+            value += instruction.value << 7
+            value += InstructionSet.instruction_set[instruction.opcode]
 
             # append 2 bytes to the list
             data += value.to_bytes(2, "little")

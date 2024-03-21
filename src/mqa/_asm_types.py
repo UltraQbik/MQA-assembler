@@ -80,6 +80,18 @@ class Instruction:
         return f"{self.opcode} {self.value}"
 
 
+class Pointer:
+    def __init__(self, value: int):
+        """
+        Pointer class
+        """
+
+        self.value = value
+
+    def __repr__(self):
+        return f"*{self.value}"
+
+
 class Scope:
     def __init__(self, body: list, btype: BType):
         """
@@ -119,6 +131,13 @@ class Scope:
         """
 
         self.body.append(item)
+
+    def insert(self, index: int, item: Any) -> None:
+        """
+        Appends item to body
+        """
+
+        self.body.insert(index, item)
 
     def set_ptr(self, val: int = -1):
         """
