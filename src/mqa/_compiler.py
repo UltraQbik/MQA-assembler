@@ -6,7 +6,8 @@ from ._mqis import *
 # all known packages
 # TODO: add the ability to fetch package list directly from MQE package
 AVAILABLE_PACKAGES: set[str] = {
-    "FileManager"
+    "FileManager",
+    "DisplayManager"
 }
 
 
@@ -23,7 +24,7 @@ class Compiler:
         self.main: IScope = IScope(list(), BType.MISSING)
         self.includes: list[str] = list()
 
-        self.labels: dict[int, Pointer] = dict()
+        self.labels: dict[str, Pointer] = dict()
         self.macros: dict[str, dict[int, Macro]] = dict()
         self.define: dict[str, Token] = dict()
 
@@ -84,14 +85,20 @@ class Compiler:
                 lbl = Label(token.token[:-1], token.traceback)
                 self.tree[self.tree.pointer] = lbl
 
-                # replace all existing labels in a scope
-                for idx, t in enumerate(self.tree):
-                    if isinstance(t, TScope | Label):
-                        continue
+                def replace(old, new, scope: TScope):
+                    for idx, t in enumerate(scope):
+                        if isinstance(t, Label):
+                            continue
 
-                    t: Token
-                    if t.token[1:] == self.tree[self.tree.pointer]:
-                        self.tree[idx] = Label(lbl, t.traceback)
+                        if isinstance(t, TScope):
+                            replace(old, new, t)
+                            continue
+
+                        t: Token
+                        if t.token[1:] == old:
+                            scope[idx] = new
+
+                replace(lbl, Label(lbl, token.traceback), self.tree)
 
     def make_sub_compiler(self):
         """
@@ -102,7 +109,6 @@ class Compiler:
         sub_compiler = Compiler(self._parser)
 
         # carry labels, macros and defines inside
-        sub_compiler.labels.update(deepcopy(self.labels))
         sub_compiler.macros.update(deepcopy(self.macros))
         sub_compiler.define.update(deepcopy(self.define))
 
@@ -207,17 +213,19 @@ class Compiler:
 
             self.define[arg.token] = to_assign
 
-            # replace token using the new assign
-            old_pointer = self.tree.pointer
-            while (token := self.tree.next()) is not None:
-                if not isinstance(token, Token):
-                    continue
+            def replace(old, new, scope):
+                for idx, t in enumerate(scope):
+                    if isinstance(t, TScope):
+                        replace(old, new, t)
+                        continue
 
-                if token == arg:
-                    self.tree.body[self.tree.pointer] = to_assign
+                    if not isinstance(t, Token):
+                        continue
 
-            # use old pointer
-            self.tree.pointer = old_pointer
+                    if t == old:
+                        scope[idx] = new
+
+            replace(arg, to_assign, self.tree)
 
         # for loop
         elif keyword.token == "FOR":
@@ -349,8 +357,6 @@ class Compiler:
 
         # process macros and labels
         self.process_macros_and_labels()
-
-        # print(self.tree)
 
         self.tree.set_ptr()
         while (token := self.tree.next()) is not None:
@@ -504,11 +510,10 @@ class Compiler:
         self.main.set_ptr()
 
         # label table
-        self.labels = {}
         while (instruction := self.main.next()) is not None:
             if isinstance(instruction, Label):
-                lbl = self.main.pop()
-                self.labels[id(lbl)] = Pointer(self.main.pointer)
+                lbl: Label = self.main.pop()
+                self.labels[lbl.token] = Pointer(self.main.pointer)
 
         # reset pointer
         self.main.set_ptr()
@@ -520,7 +525,7 @@ class Compiler:
                 continue
 
             # replace label with a pointer
-            instruction.value = self.labels[id(instruction.value)]
+            instruction.value = self.labels[instruction.value.token]
 
         # reset pointer
         self.main.set_ptr()
