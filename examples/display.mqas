@@ -1,0 +1,77 @@
+INCLUDE DisplayManager
+
+
+macro int_decrement(adr_low, adr_high) {
+    LRA adr_low
+    DEC
+    SRA adr_low
+    LRA adr_high
+    SBC 0
+    SRA adr_high
+}
+
+
+_start:
+    ; initialize with 255x255 display in XY mode
+    LRA 255
+    CALL $_initialize_display_xy
+
+    ; make int
+    LRA 255
+    SRA $0
+    SRA $1
+
+main_loop:
+    LRA $0
+    PUSH
+    LRA $1
+    PUSH
+
+    LRA $0
+    PUSH
+    CALL $_plot_xy
+
+    int_decrement($0, $1)
+    LRA $1
+    JMPZ $_forever
+    JMP $main_loop
+
+_forever:
+    JMP $_forever
+
+_initialize_display_xy:
+    ; put width and height from ACC
+    PRW 1
+    PRW 2
+
+    ; initialize with XY mode
+    LRA 1
+    PRW 0
+
+    ; call interrupt
+    INT
+
+    ; return
+    RET 0
+
+
+_plot_xy:
+    ; initialize with XY mode
+    LRA 1
+    PRW 0
+
+    ; put val
+    POP
+    PRW 3
+
+    ; put XY coords
+    POP
+    PRW 2
+    POP
+    PRW 1
+
+    ; call interrupt
+    INT
+
+    ; return
+    RET 0
