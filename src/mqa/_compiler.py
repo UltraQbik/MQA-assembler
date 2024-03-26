@@ -545,7 +545,7 @@ class Compiler:
 
             # check for manual rom page change instructions
             elif instruction.opcode == "CRP":
-                new_rom_page = instruction.value >> 8
+                new_rom_page = instruction.value
 
             # check that the new rom page does not exceed 16 bit limit (upper 8 bits)
             if new_rom_page > 255:
@@ -553,16 +553,27 @@ class Compiler:
 
             # if the new rom page is not equal to current one
             if rom_page != new_rom_page:
+                # insert new instruction
                 self.main.insert(
                     self.main.pointer,
                     Instruction("CRP", new_rom_page, False))
+
+                # offset all label pointers by 1
                 self.shift_labels()
+
+                # go to next instruction, and change the rom page
+                self.main.next()
+                rom_page = new_rom_page
 
         # make everything integer
         for instruction in self.main:
             # replace pointer with just integer
             if isinstance(instruction.value, Pointer):
-                instruction.value = instruction.value.value
+                instruction.value = instruction.value.value & 255
+
+            # make everything 8-bit integer
+            elif isinstance(instruction.value, int):
+                instruction.value = instruction.value & 255
 
         # get old pointer value
         self.main.set_ptr(old_ptr)
