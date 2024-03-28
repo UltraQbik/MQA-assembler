@@ -7,9 +7,7 @@ MQ_VERSION = b'1.1 '
 
 class Constructor:
     @staticmethod
-    def generate_bytes(includes: list[str],
-                       instruction_list: list[list[Token | Argument]],
-                       verbose: bool = False) -> bytes:
+    def generate_bytes(includes: list[str], instruction_list: IScope, verbose: bool = False) -> bytes:
         """
         Generates the executable .mqa file with header
         :param includes: list of included extensions
@@ -53,25 +51,10 @@ class Constructor:
 
         # assemblySectionData
         for instruction in instruction_list:
-            # opcode
-            i_opcode = InstructionSet.instruction_set[instruction[0].token]
-
-            # if the instruction has any arguments (ex. LRA 10, argument 10)
-            # decode data and memory_flag
-            if len(instruction) > 1:
-                i_data = instruction[1].value
-                if instruction[1].type is AsmTypes.POINTER:
-                    i_memory_flag = 1
-                else:
-                    i_memory_flag = 0
-
-            # else, data and memory_flag are 0
-            else:
-                i_data = 0
-                i_memory_flag = 0
-
             # make instruction one 16 bit value
-            value = (i_memory_flag << 15) + (i_data << 7) + i_opcode
+            value = instruction.flag << 15
+            value += instruction.value << 7
+            value += InstructionSet.instruction_set[instruction.opcode]
 
             # append 2 bytes to the list
             data += value.to_bytes(2, "little")

@@ -1,198 +1,227 @@
-from enum import Enum
-from typing import Any
 from copy import deepcopy
+from enum import Enum
+from typing import Any, Iterable
 
 
-class AsmTypes(Enum):
-    """
-    Argument (class) types
-    """
+class BType(Enum):
+    """ Bracket Type """
 
-    INTEGER = 1
-    POINTER = 2
-    NAMED = 3
+    MISSING = 0
+    ROUND = 1
+    CURVED = 2
+    SQUARE = 3
 
 
 class Token:
-    def __init__(self, token: str, code_line: int):
+    def __init__(self, value: Any, tb: int = 0):
         """
-        Token class for the proper traceback.
-        Acts mostly as just a string
-        :param token: just a string
-        :param code_line: line at which the token was defined
+        Special kind of string
+        :param value: value that the token holds
+        :param tb: traceback line
         """
 
-        self._token: str = token
-        self._code_line: int = code_line
+        self.token = value
+
+        self._traceback = tb
 
     @property
-    def token(self) -> str:
-        return self._token
-
-    @property
-    def traceback(self) -> int:
-        return self._code_line
-
-    def __contains__(self, item):
-        return item in self._token
+    def traceback(self):
+        return self._traceback
 
     def __eq__(self, other):
-        return self._token == other
-
-    def __len__(self):
-        return len(self._token)
+        if isinstance(other, Token):
+            return self.token == other.token
+        elif isinstance(other, str):
+            return self.token == other
+        return False
 
     def __repr__(self):
-        return self._token.__repr__()
-
-    def __str__(self):
-        return self._token
+        return self.token.__repr__()
 
 
 class Label(Token):
     """
-    Acts exactly the same way the token does,
-    Just a little bit special
+    Special kind of token
     """
 
     def __repr__(self):
-        return f"${self.token}"
+        return f"@{self.token}"
 
 
-class LabelPointer:
-    """
-    Points to index of a label.
-    """
+class Instruction:
+    def __init__(self, opcode: str | Token, value: Any | None = None, memory_flag: bool = False, tb: int = 0):
+        """
+        An instruction word
+        :param opcode: assembly mnemonic
+        :param value: argument that will be used
+        :param memory_flag: cache or ROM
+        :param tb: traceback line
+        """
 
-    def __init__(self, value):
+        self.opcode: str = opcode if not isinstance(opcode, Token) else opcode.token
+        self.flag = memory_flag
+
+        if isinstance(value, Token) and not isinstance(value, Label):
+            self.value = value.token
+        elif value is None:
+            self.value = 0
+        else:
+            self.value = value
+
+        self._traceback = tb
+
+    @property
+    def traceback(self):
+        return self._traceback
+
+    def __repr__(self):
+        if self.flag:
+            return f"{self.opcode} ${self.value}"
+        return f"{self.opcode} {self.value}"
+
+
+class Pointer:
+    def __init__(self, value: int):
+        """
+        Pointer class
+        """
+
         self.value = value
 
     def __repr__(self):
-        return f"{self.value}"
+        return f"*{self.value}"
 
 
-class Macro:
-    def __init__(self, name: str, args: list[Token], body: list):
+class Scope:
+    def __init__(self, body: list, btype: BType):
         """
-        Macro token, used in precompilation
-        :param name: name of the macro
-        :param args: arguments of the macro
-        :param body: instructions composing the macro
-        """
-
-        self.name: str = name
-        self.args: list[Token] = [x for x in args if x != ","]
-        self.argn: int = len(self.args)
-        self.body: list[list[Token] | Label | Macro] = body
-
-    def put_args(self, *args: Token):
-        """
-        Puts the arguments in the corresponding places
-        :param args: arguments to the macro
-        :raises TypeError: when the amount of arguments does not match
+        Some kind of scope
+        :param body: list of some things
+        :param btype: bracket type
         """
 
-        if len(args) != self.argn:
-            raise TypeError()
+        self.body: list = body
+        self.btype: BType = btype
 
-        for instruction in self.body:
-            if isinstance(instruction, (Label, Macro)):
-                continue
-            for token_idx, tok in enumerate(instruction):
-                # the first token must be an instruction word
-                if token_idx == 0:
-                    continue
-                for arg_idx, arg in enumerate(self.args):
-                    if tok == arg:
-                        instruction[token_idx] = args[arg_idx]
-        self.args = args
+        self.pointer: int = -1
+
+    def next(self) -> Any:
+        """
+        :return: next item in the scope or None if the scope has ended
+        """
+
+        self.pointer += 1
+        if self.pointer >= self.body.__len__():
+            return None
+        return self.body[self.pointer]
+
+    def pop(self, index=None) -> Any:
+        """
+        Pops next item on the list
+        :return: next item on the list
+        """
+
+        if index is None:
+            return self.body.pop(self.pointer)
+        return self.body.pop(index)
+
+    def append(self, item) -> None:
+        """
+        Appends item to body
+        """
+
+        self.body.append(item)
+
+    def insert(self, index: int, item: Any) -> None:
+        """
+        Appends item to body
+        """
+
+        self.body.insert(index, item)
+
+    def set_ptr(self, val: int = -1):
+        """
+        Sets the pointer to some token
+        :param val: integer
+        """
+
+        self.pointer = val
+
+    def unify(self, other):
+        if isinstance(other, Scope):
+            self.body += other.body
+        else:
+            raise TypeError("No.")
+
+    def __repr__(self):
+        match self.btype:
+            case BType.MISSING:
+                return f"<{self.body.__repr__()}>"
+            case BType.ROUND:
+                return f"({self.body.__repr__()})"
+            case BType.CURVED:
+                return f"{{{self.body.__repr__()}}}"
+            case BType.SQUARE:
+                return f"[{self.body.__repr__()}]"
+
+    def __len__(self):
+        return self.body.__len__()
+
+    def __iter__(self):
+        return self.body.__iter__()
+
+    def __getitem__(self, item):
+        if isinstance(item, int):
+            return self.body[item]
+        raise TypeError
+
+    def __setitem__(self, key, value):
+        if isinstance(key, int):
+            self.body[key] = value
+        else:
+            raise TypeError
 
     def __copy__(self):
-        return Macro(self.name, deepcopy(self.args), deepcopy(self.body))
-
-    def __repr__(self):
-        return f"{{{self.name}({self.args})}}"
+        return self.__class__(deepcopy(self.body), self.btype)
 
 
-class ForLoop:
-    def __init__(self, var: str, range_: str, body: list[list[Token] | Label | Macro]):
+class TScope(Scope):
+    """
+    Token Scope.
+    Scope that has tokens in it
+    """
+
+
+class IScope(Scope):
+    """
+    Instruction Scope.
+    Scope that has instructions in it
+    """
+
+    def replace(self, old, new):
         """
-        A for loop class
-        :param var: variable of a for loop
-        :param range_: range of a for loop
-        :param body: body of the for loop
-        :raises SyntaxError: when the syntax is incorrect
-        """
-
-        self.var: str = var
-        self.body: list[list[Token] | Label | Macro] = body
-
-        # string range
-        if range_[0] == range_[-1] in "\"\'":
-            self.range = [ord(x) for x in range_[1:-1]]
-
-        # integer range
-        elif range_.find("..") > -1:
-            split_range = range_.split("..")
-            try:
-                range_start = int(split_range[0], base=0)
-                range_end = int(split_range[1], base=0)
-                if range_end > range_start:
-                    self.range = range(range_start, range_end)
-                else:
-                    # we assume the user wants the same sequence just in reverse
-                    self.range = range(range_start - 1, range_end - 1, -1)
-            except ValueError:
-                raise SyntaxError("Incorrect syntax for a for loop range, or incorrect integer specified")
-
-        # error
-        else:
-            raise SyntaxError("Unrecognized syntax for a for loop range")
-
-    def put_args(self, arg: Token):
-        """
-        Replaces 'self.var' inside tokens with arg.
-        :param arg: argument that needs to be put
-        :return: new body of the for loop, with variable replaced
+        Replaces old tokens with new ones
+        :param old: old
+        :param new: new
+        :return: self
         """
 
-        # go through instructions and the instruction's tokens, and process them
-        # make sure it's a copy of the body, to not modify the original
-        new_body = deepcopy(self.body)
-        for instruction in new_body:
-            # skip labels and macros
-            if isinstance(instruction, (Label, Macro)):
+        for instruction in self.body:
+            # skip labels
+            if isinstance(instruction, Label):
                 continue
 
-            # go through instruction's tokens
-            for token_idx, token in enumerate(instruction):
-                # if token is the same as the variable, replace it with arg
-                if token.token == self.var:
-                    instruction[token_idx] = arg
-        return new_body
+            if instruction.value == old:
+                instruction.value = new
+        return self
 
 
-class Argument:
-    def __init__(self, value: Any, type_: AsmTypes):
-        """
-        Contains a value (anything), and type
-        :param value: argument value
-        :param type_: argument type
-        """
+class Macro(IScope):
+    """
+    A macro scope
+    """
 
-        self.value = value
-        self.type = type_
+    def __init__(self, body: list, btype: BType, args: TScope):
+        super().__init__(body, btype)
 
-    def __eq__(self, other):
-        if not isinstance(other, self.__class__):
-            return False
-        if self.value == other.value and self.type is other.type:
-            return True
-
-    def __repr__(self):
-        if self.type is AsmTypes.INTEGER:
-            return f"{self.value}"
-        elif self.type is AsmTypes.POINTER:
-            return f"${self.value}"
-        elif self.type is AsmTypes.NAMED:
-            return f"${self.value}"
+        self.args: TScope = args

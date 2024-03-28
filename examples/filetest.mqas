@@ -2,65 +2,61 @@
 INCLUDE FileManager
 
 
+macro setp(port, val) {
+    LRA val
+    PRW port
+}
+
+
 macro file_read(ptr_low, ptr_high, size_low, size_high) {
     ; set the read operation
-    LRA 0
-    PRW 0
+    setp(0, 0)
 
     ; set pointers
-    LRA ptr_low
-    PRW 1
-    LRA ptr_high
-    PRW 2
+    setp(1, ptr_low)
+    setp(2, ptr_high)
 
     ; set sizes
-    LRA size_low
-    PRW 3
-    LRA size_high
-    PRW 4
+    setp(3, size_low)
+    setp(4, size_high)
 
     ; call interupt
     INT
 }
 
 
+; Modifies ACC
 macro print(char_ptr) {
     ; Prints out null terminated string
 
     LRA char_ptr
-    SRA $255
+    PUSH
 
 loop:
-    LRA $255
+    POP
+    PUSH
     LRP
     JMPZ $end
 
     UOC
-    LRA $255
+    POP
     INC
-    SRA $255
+    PUSH
     JMP $loop
 end:
+    POP
 }
 
 
 _start:
-    ; dumb way to put a string into memory
-    ; need a LEN keyword
-    FOR char IN "LICENSE" {
-        LRA char
-        PUSH
-    }
-    FOR idx IN 7..0 {
-        POP
-        SRA idx
-    }
+    ASSIGN name "LICENSE"
+    __WRITE_STR__ 0 name
 
     ; read the file
-    file_read(1, 0, 250, 0)
+    file_read(0, 0, 39, 0)
 
     ; print the file
-    print(0b1_0000_0000)
+    print(0)
 
 _end:
     HALT

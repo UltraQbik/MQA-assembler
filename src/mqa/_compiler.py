@@ -1,459 +1,579 @@
+from argparse import Namespace
 from ._asm_types import *
 from ._mqis import *
 
 
-class Compiler(InstructionSet):
-    @staticmethod
-    def die(message: str, traceback: int, exception):
-        raise exception(f"{message}\n  line {traceback}")
+# all known packages
+# TODO: add the ability to fetch package list directly from MQE package
+AVAILABLE_PACKAGES: set[str] = {
+    "FileManager",
+    "DisplayManager"
+}
 
-    @classmethod
-    def process_scope_macros(cls, token_tree: list[list[Token] | Token]) -> dict[str, dict[int, Macro]]:
+
+class Compiler:
+    KEYWORDS: set[str] = {"FOR", "ASSIGN", "LEN", "ENUMERATE", "INCLUDE", "__WRITE_STR__"}
+    RETURNING_KEYWORDS: set[str] = {"LEN", "ENUMERATE"}
+
+    def __init__(self, parser_args: Namespace):
         """
-        Returns a table of this scope's macros (with macro overloading). Modifies the token tree to delete
-        already defined macros.
-        Not recursive
-        :param token_tree: tree of tokens
-        :return: table of macros
+        The main compiler class
         """
 
-        # macros
-        macros: dict[str, dict[int, Macro]] = {}
+        self.tree: TScope | None = None
+        self.main: IScope = IScope(list(), BType.MISSING)
+        self.includes: list[str] = list()
 
-        # token pointer
-        token_ptr = [-1]
+        self.labels: dict[str, Pointer] = dict()
+        self.macros: dict[str, dict[int, Macro]] = dict()
+        self.define: dict[str, Token] = dict()
 
-        # token fetching function
-        def next_token() -> list[Token] | Token | None:
-            token_ptr[0] += 1
-            if token_ptr[0] >= len(token_tree):
-                return None
-            return token_tree[token_ptr[0]]
+        self._parser = parser_args
 
-        # go through each token and make macros
-        while (token := next_token()) is not None:
-            # skip sub-lists
-            if isinstance(token, list):
+    def process_macros_and_labels(self):
+        """
+        Processes scope macros
+        """
+
+        self.tree.set_ptr()
+        while (token := self.tree.next()) is not None:
+            # skip sub-scopes and labels
+            if isinstance(token, TScope | Label):
                 continue
 
-            # macro
+            # macros
             if token.token == "macro":
-                # load all macro things
-                macro_name = next_token()
-                macro_args = next_token()
-                macro_body = next_token()
+                # fetch values
+                self.tree.pop()
+                macro_name = self.tree.pop()
+                macro_args = self.tree.pop()
+                macro_body = self.tree.pop()
 
-                # get rid of macro define
-                token_ptr[0] -= 3
-                token_tree.pop(token_ptr[0])
-                token_tree.pop(token_ptr[0])
-                token_tree.pop(token_ptr[0])
-                token_tree.pop(token_ptr[0])
+                # perform checks
+                # name check
+                if isinstance(macro_name, Token):
+                    macro_name = macro_name.token
+                else:
+                    raise SyntaxError("Incorrect macro definition")
 
-                # check if macro name is a token, and not a string
-                if not isinstance(macro_name, Token):
-                    raise SyntaxError("Expected a macro name")
+                # arguments check
+                if not isinstance(macro_args, TScope) or macro_args.btype is not BType.ROUND:
+                    raise SyntaxError("Excepted a '('")
 
-                # check if macro args is a list of tokens, and not just a token
-                if not isinstance(macro_args, list):
-                    raise SyntaxError("Expected a '('")
-
-                # check if macro body is a list of tokens
-                if not isinstance(macro_body, list):
+                # body check
+                if not isinstance(macro_body, TScope) or macro_body.btype is not BType.CURVED:
                     raise SyntaxError("Expected a '{'")
 
-                # check if macro is already present
-                if macro_name.token in macros:
-                    # check if macros have same amount of arguments
-                    if macros[macro_name.token].get(len(macro_args)) is not None:
-                        print(f"WARN: You are overloading a macro '{macro_name}' with the same number of arguments")
-                else:
-                    macros[macro_name.token] = {}
+                # adding a macro
+                if macro_name not in self.macros:
+                    self.macros[macro_name] = {}
+                if len(macro_args) in self.macros[macro_name]:
+                    print("WARN: macro redefinition")
 
-                # add new macro
-                macros[macro_name.token][len(macro_args)] = Macro(
-                    name=macro_name.token,
-                    args=macro_args,
-                    body=cls.compile(macro_body, "macro")[0]
+                # initiate a sub-compiler class for a macro
+                sub_compiler = self.make_sub_compiler()
+
+                # create a macro
+                self.macros[macro_name][len(macro_args)] = Macro(
+                    sub_compiler.compile(macro_body, False),
+                    BType.MISSING,
+                    macro_args
                 )
-        return macros
 
-    @classmethod
-    def process_scope_labels(cls, token_tree: list[list[Token] | Token]) -> dict[str, Label]:
-        """
-        Returns a table of labels. Modifies the token tree to preserve unique labels
-        Not recursive
-        :param token_tree: 
-        :return:
-        """
-
-        # table of labels
-        labels: dict[str, Label] = {}
-
-        # token pointer
-        token_ptr = [-1]
-
-        # token fetching function
-        def next_token() -> list[Token] | Token | None:
-            token_ptr[0] += 1
-            if token_ptr[0] >= len(token_tree):
-                return None
-            return token_tree[token_ptr[0]]
-
-        # go through tokens and find labels
-        while (token := next_token()) is not None:
-            # skip sub-lists
-            if isinstance(token, list):
-                continue
-
-            # check if it's a label
-            if token.token[-1] == ":":
-                label_name = token.token[:-1]
-                if label_name in labels:
-                    print(f"WARN: redefining existing label '{label_name}'")
-
-                label_class = Label(label_name, token.traceback)
-                labels[label_name] = label_class
-
-                # this may cause problems (?)
-                token_tree[token_ptr[0]] = label_class
-
-        # reset token pointer
-        token_ptr[0] = -1
-
-        # go through tokens and process label pointers
-        while (token := next_token()) is not None:
-            # skip sub-lists
-            if isinstance(token, list):
-                continue
-
-            if token.token[0] == "$":
-                if not token.token[1].isdigit():
-                    if token.token[1:] not in labels:
-                        raise NameError(f"Undefined label '{token}'")
-                    token_tree[token_ptr[0]] = labels[token.token[1:]]
-        return labels
-
-    @classmethod
-    def compile(cls, token_tree: list[list[Token] | Token], scope="main")\
-            -> tuple[list[list[Token | Argument]], list[str]]:
-        """
-        Compiles the token_tree.
-        :param token_tree: tree of tokens
-        :param scope: scope which is being compiled. Default = main
-        :return: list of instructions and list of includes
-        """
-
-        # TODO: rewrite compiler
-
-        # labels and macros
-        labels = cls.process_scope_labels(token_tree)
-        macros = cls.process_scope_macros(token_tree)
-
-        # instruction list
-        instruction_list = []
-
-        # includes
-        include_list: list[str] = []
-
-        # token pointer
-        token_ptr = [-1]
-
-        # token fetching function
-        def next_token() -> list[Token] | Token | None:
-            token_ptr[0] += 1
-            if token_ptr[0] >= len(token_tree):
-                return None
-            return token_tree[token_ptr[0]]
-
-        # go through tokens and compile the code
-        while (token := next_token()) is not None:
             # labels
+            elif token.token[-1] == ":":
+                lbl = Label(token.token[:-1], token.traceback)
+                self.tree[self.tree.pointer] = lbl
+
+                def replace(old, new, scope: TScope):
+                    for idx, t in enumerate(scope):
+                        if isinstance(t, Label):
+                            continue
+
+                        if isinstance(t, TScope):
+                            replace(old, new, t)
+                            continue
+
+                        t: Token
+                        if t.token[1:] == old:
+                            scope[idx] = new
+
+                replace(lbl, Label(lbl, token.traceback), self.tree)
+
+    def make_sub_compiler(self):
+        """
+        Creates a copy of itself
+        """
+
+        # initiate a sub-compiler class for a macro
+        sub_compiler = Compiler(self._parser)
+
+        # carry labels, macros and defines inside
+        sub_compiler.macros.update(deepcopy(self.macros))
+        sub_compiler.define.update(deepcopy(self.define))
+
+        return sub_compiler
+
+    def process_for_loop(self, args: Token | TScope, range_: Token | int | list[tuple], body: TScope) -> IScope:
+        """
+        Processes the for loop.
+        :param args: argument / arguments that will be used in a for loop
+        :param range_: range that will be applied to 'args'
+        :param body: body of the for loop
+        :returns: instruction scope
+        """
+
+        # check
+        if not isinstance(args, TScope) and isinstance(range_, list):
+            raise SyntaxError("Unable to unpack 1 value to multiple arguments")
+
+        # create a sub-compiler
+        sub_compiler = self.make_sub_compiler()
+
+        # compile the body
+        compiled_body: IScope = sub_compiler.compile(body, False)
+
+        # TODO: make optimized for memory version
+        instruction_scope = IScope(list(), BType.MISSING)
+
+        # string ranges
+        if isinstance(range_, Token) and range_.token[0] == range_.token[-1] == "\"":
+            args: Token
+            for char in range_.token[1:-1]:
+                body_copy = deepcopy(compiled_body)
+                body_copy.replace(args.token, ord(char))
+                instruction_scope.unify(body_copy)
+
+        # integer ranges
+        elif isinstance(range_, Token):
+            split_range = range_.token.split("..")
+
+            # checks
+            if len(split_range) > 2:
+                raise SyntaxError("Incorrectly defined range")
+
+            try:
+                range_start = int(split_range[0], base=0)
+                range_end = int(split_range[1], base=0)
+            except ValueError:
+                raise SyntaxError("Unable to convert an integer range number")
+
+            if range_start < range_end:
+                range__ = range(range_start, range_end)
+            else:
+                range__ = range(range_start - 1, range_end - 1, -1)
+
+            args: Token
+            for i in range__:
+                body_copy = deepcopy(compiled_body)
+                body_copy.replace(args.token, i)
+                instruction_scope.unify(body_copy)
+
+        # single integer range
+        elif isinstance(range_, int):
+            args: Token
+            for i in range(range_):
+                body_copy = deepcopy(compiled_body)
+                body_copy.replace(args.token, i)
+                instruction_scope.unify(body_copy)
+
+        # enumerate
+        elif isinstance(range_, list) and isinstance(args, TScope):
+            # yes, we assume there are only 2 args
+            for idx, char in range_:
+                body_copy = deepcopy(compiled_body)
+
+                body_copy.replace(args[0].token, idx)
+                body_copy.replace(args[1].token, ord(char))
+
+                instruction_scope.unify(body_copy)
+        else:
+            raise NotImplementedError("Something went wrong?")
+
+        return instruction_scope
+
+    def process_keyword(self, keyword: Token):
+        """
+        Processes keywords.
+        :param keyword: keyword that needs to be processed
+        :return: value after it's processed
+        """
+
+        # assign
+        if keyword.token == "ASSIGN":
+            arg = self.tree.next()
+
+            # check
+            if not isinstance(arg, Token):
+                raise NotImplementedError("Only string assignments are allowed")
+
+            to_assign = self.tree.next()
+            if isinstance(to_assign, Token) and to_assign.token in self.RETURNING_KEYWORDS:
+                to_assign = self.process_keyword(to_assign)
+
+            self.define[arg.token] = to_assign
+
+            def replace(old, new, scope):
+                for idx, t in enumerate(scope):
+                    if isinstance(t, TScope):
+                        replace(old, new, t)
+                        continue
+
+                    if not isinstance(t, Token):
+                        continue
+
+                    if t == old:
+                        scope[idx] = new
+
+            replace(arg, to_assign, self.tree)
+
+        # for loop
+        elif keyword.token == "FOR":
+            # fetch the name(s) for the variable(s)
+            args = self.tree.next()
+
+            if isinstance(args, TScope) and args.btype is not BType.ROUND:
+                raise SyntaxError("Expected a '('")
+
+            # check IN keyword
+            token = self.tree.next()
+            if not (isinstance(token, Token) and token.token == "IN"):
+                raise SyntaxError("Incorrect for loop define")
+
+            range_ = self.tree.next()
+            if isinstance(range_, Token):
+                if range_.token in self.RETURNING_KEYWORDS:
+                    range_ = self.process_keyword(range_)
+                elif range_.token[0] == range_.token[-1] == "\"":
+                    pass
+                elif range_.token.find("..") == -1:
+                    try:
+                        range_ = int(range_.token, base=0)
+                    except ValueError:
+                        raise ValueError("Unable to convert single value range")
+            else:
+                raise SyntaxError("Incorrect for loop range")
+
+            body = self.tree.next()
+            if not (isinstance(body, TScope) and body.btype is BType.CURVED):
+                raise SyntaxError("Expected a '{'")
+
+            # append instructions to the list of instructions
+            self.main.unify(self.process_for_loop(args, range_, body))
+
+        # LEN
+        elif keyword.token == "LEN":
+            # fetch the next argument
+            arg = self.tree.next()
+
+            # checks
+            if not isinstance(arg, Token):
+                raise TypeError(f"Unable to return length of '{arg}'")
+
+            if arg.token[0] == arg.token[-1] == "\"":
+                return len(arg.token)-2
+            raise TypeError("Unable to return length for a non string argument")
+
+        # ENUMERATE
+        elif keyword.token == "ENUMERATE":
+            # fetch the next argument
+            arg = self.tree.next()
+
+            if isinstance(arg, Token) and arg.token[0] == arg.token[-1] == "\"":
+                return list(enumerate(arg.token[1:-1]))
+            else:
+                raise NotImplementedError(f"Unable to construct a sequence for {arg.__class__}")
+
+        # INCLUDE
+        elif keyword.token == "INCLUDE":
+            # package name
+            arg = self.tree.next()
+
+            if not isinstance(arg, Token):
+                raise SyntaxError("Incorrect package name")
+
+            if arg.token not in AVAILABLE_PACKAGES:
+                print(f"WARN: included package '{arg.token}' is not recognized by current version of the compiler")
+
+            # append the included package name
+            self.includes.append(arg.token)
+
+        # __WRITE_STR__
+        elif keyword.token == "__WRITE_STR__":
+            # get arguments for a built-in function
+            pointer = self.tree.next()
+            string = self.tree.next()
+
+            # checks
+            if not isinstance(pointer, Token):
+                raise TypeError(f"Incorrect type '{pointer.__class__}'")
+            if not isinstance(string, Token):
+                raise TypeError(f"Incorrect type '{string.__class__}")
+
+            try:
+                pointer = int(pointer.token, base=0)
+            except ValueError:
+                raise TypeError("Incorrect argument")
+
+            if not (string.token[0] == string.token[-1] == "\""):
+                raise TypeError("Incorrect argument")
+
+            sorted_string = [(x, ord(y)) for x, y in enumerate(string.token[1:-1])]
+            sorted_string.sort(key=lambda x: x[1])
+
+            # just ignore empty strings
+            if len(sorted_string) == 0:
+                return
+
+            acc_value = -1
+            for item in sorted_string:
+                # if the character in ACC is different
+                if acc_value != item[1]:
+                    acc_value = item[1]
+                    self.main.append(
+                        Instruction("LRA", acc_value, tb=keyword.traceback))
+
+                # NOTE: the address will exceed 8bit integer limit,
+                # but it will be fixed in the next step of compilation
+                address = item[0] + pointer
+
+                # append store instruction
+                self.main.append(
+                    Instruction("SRA", address, tb=keyword.traceback))
+
+        else:
+            raise NotImplementedError(f"Keyword '{keyword.token}' is not yet implemented")
+
+    def compile(self, tree: TScope, is_main=True) -> Any:
+        """
+        Main compile method for token scopes
+        :param tree: token tree
+        :param is_main: is the scope - main scope
+        :return: IScope
+        """
+
+        # set input tree
+        self.tree = deepcopy(tree)
+
+        # process macros and labels
+        self.process_macros_and_labels()
+
+        self.tree.set_ptr()
+        while (token := self.tree.next()) is not None:
+            # append labels and continue
             if isinstance(token, Label):
-                instruction_list.append(token)
+                self.main.append(token)
                 continue
 
-            # if it's a newline
+            # skip newlines
             if token.token == "\n":
                 continue
 
-            # instruction mnemonic token
-            if token.token in cls.instruction_set:
+            # mnemonics
+            if token.token in InstructionSet.instruction_set:
                 instruction_word = [token]
-                while (instruction_token := next_token()).token != "\n":
-                    instruction_word.append(instruction_token)
-                instruction_list.append(instruction_word)
+                while (itoken := self.tree.next()).token != "\n":
+                    instruction_word.append(itoken)
+                self.main.append(Instruction(
+                    instruction_word[0].token,
+                    instruction_word[1].token if len(instruction_word) > 1 else 0
+                ))
 
             # macros
-            elif token.token in macros:
-                macro_name = token.token
-                macro_args = next_token()
-
-                # check if macro_args is an instance of a list
-                if not isinstance(macro_args, list):
-                    raise SyntaxError(f"Expected a '('")
-
-                # check if a macro with this name exists
-                if macro_name not in macros:
-                    raise NameError(f"Undefined macro '{macro_name}'")
-
-                # check if macro with the same number of args is present
-                if macros[macro_name].get(len(macro_args)) is None:
-                    raise TypeError(f"Macro '{macro_name}' with this amount of arguments "
-                                    f"({len(macro_args)}) doesn't exist")
-
-                macro = macros[macro_name][len(macro_args)].__copy__()
-                macro.put_args(*macro_args)
-                instruction_list += macro.body
-
-            # FOR keyword
-            elif token.token == "FOR":
-                for_variable_name = next_token()
-
-                # check syntax for a for loop
-                if next_token().token != "IN":
-                    raise SyntaxError("Incorrect FOR loop syntax")
-
-                for_range = next_token()
-                for_body = next_token()
+            elif token.token in self.macros:
+                # fetch data
+                macro_name: Token = self.tree.pop()
+                macro_args = self.tree.pop()
 
                 # checks
-                if not isinstance(for_variable_name, Token):
-                    raise SyntaxError(f"Expected a variable, not a '{for_variable_name.__class__}'")
-                if not isinstance(for_range, Token):
-                    raise SyntaxError(f"Expected a range 'n..m', not a '{for_range}'")
-                if not isinstance(for_body, list):
-                    raise SyntaxError("Expected a '{'")
+                if not isinstance(macro_args, TScope) and macro_args.btype is not BType.ROUND:
+                    raise SyntaxError("Expected a '('")
 
-                # construction a for loop class
-                for_loop = ForLoop(
-                    var=for_variable_name.token,
-                    range_=for_range.token,
-                    body=cls.compile(for_body, "for_loop")[0]
-                )
+                if len(macro_args) not in self.macros[macro_name.token]:
+                    raise NameError(f"Undefined macro {macro_name}")
 
-                # process the range
-                for i in for_loop.range:
-                    token_i = Token(str(i), token.traceback)
-                    instruction_list += for_loop.put_args(token_i)
+                macro = deepcopy(self.macros[macro_name.token][len(macro_args)])
+                arg: Token
+                for idx, arg in enumerate(macro.args):
+                    macro.replace(arg.token, macro_args[idx].token)
+                self.main.body += macro.body
 
-            # INCLUDE keyword
-            elif token.token == "INCLUDE":
-                include_name = next_token()
+            # keywords
+            elif token.token in self.KEYWORDS:
+                self.process_keyword(token)
 
-                # check that it's a token
-                if not isinstance(include_name, Token):
-                    raise SyntaxError("Incorrect include syntax")
-
-                # append token to the list of includes
-                # NOTE: they are processed only in main scope, macros are ignored
-                include_list.append(include_name.token)
-
-            # otherwise raise a name error
             else:
-                raise NameError(f"Undefined instruction word '{token}'")
+                raise NameError(f"Undefined instruction '{token.token}'")
 
-        # if we are processing the macro => we are done here
-        if scope != "main":
-            return instruction_list, include_list
+        # sub-scopes are done here
+        if not is_main:
+            return deepcopy(self.main)
 
-        # optimizes unnecessary instructions
-        cls.optimize_instructions(instruction_list)
+        # process instruction arguments
+        for instruction in self.main:
+            # already processed ints and labels
+            if isinstance(instruction, Label) or isinstance(instruction.value, int | Label):
+                continue
 
-        # processes the labels and the instruction arguments
-        cls.process_instructions(instruction_list)
+            # pointers
+            if instruction.value[0] == "$":
+                # try to convert string integer to normal integer
+                try:
+                    instruction.value = int(instruction.value[1:], base=0)
+                except ValueError:
+                    raise ValueError("Incorrect pointer value")
 
-        return instruction_list, include_list
+                # set memory flag to be true (as this is a pointer)
+                instruction.flag = True
 
-    @classmethod
-    def optimize_instructions(cls, instruction_list: list[list[Token | Argument] | Label]):
+            # generic string integers
+            elif isinstance(instruction.value, str):
+                # try to convert string integer to normal integer
+                try:
+                    instruction.value = int(instruction.value, base=0)
+                except ValueError:
+                    raise ValueError("Incorrect integer value")
+
+            # something went wrong
+            else:
+                raise Exception("Something went wrong")
+
+        # optimize instructions
+        self.optimize_instructions()
+
+        # place all the labels
+        self.place_labels()
+
+        return deepcopy(self.main)
+
+    def optimize_instructions(self):
         """
-        Optimizes the list of instructions and labels (when possible)
-        :param instruction_list: list of instructions
+        Optimizes away unnecessary instructions
         """
 
-        # instruction pointer
-        instruction_ptr = [-1]
+        # value in accumulator
+        acc = 0
 
-        # instruction fetching function
-        def next_instruction() -> list[Token | Argument] | Label | None:
-            instruction_ptr[0] += 1
-            if instruction_ptr[0] >= len(instruction_list):
-                return None
-            return instruction_list[instruction_ptr[0]]
+        # is the instruction non-modifying
+        no_modify = True
 
-        # if the instruction is non changing
-        to_change: bool = True
+        # save the old pointer value
+        old_ptr = self.main.pointer
+        self.main.set_ptr()
 
-        # accumulator value
-        accumulator_value: Argument | None = None
-
-        # go through instruction list and optimize instructions
-        while (instruction := next_instruction()) is not None:
+        while (instruction := self.main.next()) is not None:
             # skip labels
             if isinstance(instruction, Label):
                 continue
 
-            # if the instruction loads a value
-            if instruction[0].token == "LRA":
-                # check if it's the same value that was loaded previously
-                if accumulator_value == instruction[1] and to_change:
-                    # if so, remove the LRA instruction, as the accumulator already contains that value
-                    instruction_list.pop(instruction_ptr[0])
-                    instruction_ptr[0] -= 1
+            if instruction.opcode == "LRA":
+                # if there are no modifying instructions before previous load
+                # remove this instruction
+                if acc == instruction.value and no_modify:
+                    self.main.pop()
 
-                # update the accumulator value with new instruction argument
-                accumulator_value = instruction[1]
+                # update the value in the accumulator
+                acc = instruction.value
 
-                # make to_change true again
-                to_change = True
+                # update no_modify
+                no_modify = True
 
-            # if the instruction modifies the accumulator
-            elif instruction[0].token not in cls.non_modifying_instructions:
-                to_change = False
+            # if the instruction is not in the list of non modifying instructions
+            elif instruction.opcode not in InstructionSet.non_modifying_instructions:
+                # then set no_modify to be false, as the ACC may change
+                no_modify = False
 
-    @classmethod
-    def process_instructions(cls, instruction_list: list[list[Token | Argument] | Label]):
+        # return back
+        self.main.set_ptr(old_ptr)
+
+    def shift_labels(self, offset: int = 1, index: int | None = None):
         """
-        Processes the instruction list.
-        Makes jump labels and token arguments
-        :param instruction_list: list of instructions
+        Shifts labels by given offset
+        :param offset: amount by which to shift (default is 1)
+        :param index: from which index to shift (default is self.main.pointer)
         """
 
-        # instruction pointer
-        instruction_ptr = [-1]
+        if index is None:
+            index = self.main.pointer
 
-        # instruction fetching function
-        def next_instruction() -> list[Token | Argument] | Label | None:
-            instruction_ptr[0] += 1
-            if instruction_ptr[0] >= len(instruction_list):
-                return None
-            return instruction_list[instruction_ptr[0]]
+        for lbl_id, lbl_idx in self.labels.items():
+            if lbl_idx.value > index:
+                self.labels[lbl_id].value += offset
 
-        # inserts new instruction
-        def insert_instruction(index: int, opcode: Token, value, type_: AsmTypes):
-            instruction_list.insert(index, [opcode, Argument(value, type_)])
+    def place_labels(self):
+        """
+        Places pointers in correct places
+        """
 
-        # labels
-        labels: dict[int, LabelPointer] = {}
+        # save old pointer value
+        old_ptr = self.main.pointer
+        self.main.set_ptr()
 
-        # go through instructions and process labels
-        while (instruction := next_instruction()) is not None:
-            # make a table entry
+        # label table
+        while (instruction := self.main.next()) is not None:
             if isinstance(instruction, Label):
-                labels[id(instruction)] = LabelPointer(instruction_ptr[0])
+                lbl: Label = self.main.pop()
+                self.labels[lbl.token] = Pointer(self.main.pointer)
 
-                # pop the label from instruction list
-                instruction_list.pop(instruction_ptr[0])
-                instruction_ptr[0] -= 1
+        # reset pointer
+        self.main.set_ptr()
+
+        # go through list of instructions, and find those which have labels as arguments
+        while (instruction := self.main.next()) is not None:
+            # if it's not a label, skip
+            if not isinstance(instruction.value, Label):
                 continue
 
-        # reset instruction pointer
-        instruction_ptr[0] = -1
+            # replace label with a pointer
+            instruction.value = self.labels[instruction.value.token]
 
-        # go through instruction and process arguments
-        # integers here are not limited to 8 bits
-        while (instruction := next_instruction()) is not None:
-            # go through instruction arguments, and process them
-            for token_idx, token in enumerate(instruction):
-                # skip mnemonics for now
-                if token_idx == 0:
-                    continue
+        # reset pointer
+        self.main.set_ptr()
 
-                # process labels
-                if isinstance(token, Label):
-                    instruction[token_idx] = Argument(labels[id(token)], AsmTypes.NAMED)
-
-                # if the token is a pointer
-                elif token.token[0] == "$":
-                    # if it's a numeric pointer
-                    instruction[token_idx] = Argument(int(token.token[1:], base=0), AsmTypes.POINTER)
-
-                # if the token is just a number
-                else:
-                    instruction[token_idx] = Argument(int(token.token, base=0), AsmTypes.INTEGER)
-
-        # reset instruction pointer
-        instruction_ptr[0] = -1
-
-        # code pages
-        cache_page = 0
-        new_cache_page = 0
+        # ROM page
         rom_page = 0
         new_rom_page = 0
 
-        # go through instruction and process arguments & check / insert instructions
-        while (instruction := next_instruction()) is not None:
-            # check mnemonics
-            # manual change cache page
-            if instruction[0] == "CCP":
-                # change cache page
-                cache_page = instruction[1].value
-                new_cache_page = cache_page
-
-            # manual change rom page
-            elif instruction[0] == "CRP":
-                # change rom page
-                rom_page = instruction[1].value
-                new_rom_page = rom_page
-
-            # any jump instruction
-            elif instruction[0] in ["JMP", "JMPP", "JMPZ", "JMPN", "JMPC", "CALL"]:
-                # instructions that go to different address in ROM
-                # NOTE: this most likely will not work in some cases
-                if isinstance(instruction[1].value, LabelPointer):
-                    new_rom_page = instruction[1].value.value >> 8
+        while (instruction := self.main.next()) is not None:
+            # check if the instruction is a jump of some kind
+            if instruction.opcode in ["JMP", "JMPP", "JMPZ", "JMPN", "JMPC", "CALL"]:
+                if isinstance(instruction.value, Pointer):
+                    new_rom_page = instruction.value.value >> 8
                 else:
-                    new_rom_page = instruction[1].value >> 8
-                    print("WARN: don't use static jump indexes; they most likely don't point where you want them to")
+                    print("WARN: don't use static jump pointers, as this may cause problems")
+                    new_rom_page = instruction.value >> 8
 
-            # any other instruction
-            else:
-                # if instruction has any arguments
-                if len(instruction) > 1 and instruction[1].type is not AsmTypes.INTEGER:
-                    new_cache_page = instruction[1].value >> 8
+            # check for manual rom page change instructions
+            elif instruction.opcode == "CRP":
+                new_rom_page = instruction.value
 
-            if cache_page != new_cache_page or rom_page != new_rom_page:
-                # insert instruction if the cache_page != new_cache_page
-                if cache_page != new_cache_page:
-                    # update page
-                    cache_page = new_cache_page
+            # check that the new rom page does not exceed 16 bit limit (upper 8 bits)
+            if new_rom_page > 255:
+                raise ResourceWarning("Jump index exceeds 16 bit integer limit")
 
-                    # insert instruction and account for it
-                    insert_instruction(
-                        instruction_ptr[0],
-                        Token("CCP", instruction[0].traceback),
-                        new_cache_page, AsmTypes.INTEGER)
+            # if the new rom page is not equal to current one
+            if rom_page != new_rom_page:
+                # insert new instruction
+                self.main.insert(
+                    self.main.pointer,
+                    Instruction("CRP", new_rom_page, False))
 
-                # insert instruction if the rom_page != new_rom_page
-                if rom_page != new_rom_page:
-                    # update page
-                    rom_page = new_rom_page
+                # offset all label pointers by 1
+                self.shift_labels()
 
-                    # insert instruction and account for it
-                    insert_instruction(
-                        instruction_ptr[0],
-                        Token("CRP", instruction[0].traceback),
-                        new_cache_page, AsmTypes.INTEGER)
+                # go to next instruction, and change the rom page
+                self.main.next()
+                rom_page = new_rom_page
 
-                # update instruction pointer
-                instruction_ptr[0] += 1
+        # make everything integer
+        for instruction in self.main:
+            # replace pointer with just integer
+            if isinstance(instruction.value, Pointer):
+                instruction.value = instruction.value.value & 255
 
-                # update label pointers
-                for label_id, label_idx in labels.items():
-                    # if label index is below current instruction pointer, then the label index is not affected
-                    if label_idx.value < instruction_ptr[0]:
-                        continue
+            # make everything 8-bit integer
+            elif isinstance(instruction.value, int):
+                instruction.value = instruction.value & 255
 
-                    # otherwise update the label pointer, and shift it by 1
-                    labels[label_id].value += 1
-
-            # if instruction has any arguments & the arg is not a label
-            if len(instruction) > 1 and instruction[1].type is not AsmTypes.NAMED:
-                # fix it to 8bit integer
-                instruction[1].value = instruction[1].value & 255
-
-        # replace label pointers with ints
-        for idx, instruction in enumerate(instruction_list):
-            if len(instruction) > 1 and isinstance(instruction[1].value, LabelPointer):
-                instruction[1].value = instruction[1].value.value
+        # get old pointer value
+        self.main.set_ptr(old_ptr)

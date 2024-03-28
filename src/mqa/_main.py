@@ -20,9 +20,17 @@ def code_compile(code: str):
 
     token_list = Tokenizer.tokenize(code)
     token_tree = Tokenizer.build_token_tree(token_list)
-    output = Compiler.compile(token_tree)
 
-    return output
+    compiler = Compiler(parser_args=args)
+    compiler.compile(token_tree)
+
+    # print("Instructions:")
+    # len_ = len(str(len(output)))
+    # for idx, instruction in enumerate(output):
+    #     print(f"{idx: >{len_}} | {instruction}")
+    # print("End.")
+
+    return compiler.main, compiler.includes
 
 
 def die(message=None):
@@ -52,9 +60,7 @@ def main():
         # how many digits does the length of list have
         line_count_offset = len(compiler_output[0].__len__().__str__())
         for idx, instruction in enumerate(compiler_output[0]):
-            mnemonic = instruction[0].token
-            argument = instruction[1] if len(instruction) > 1 else ""
-            print(f"\t{idx: >{line_count_offset}} | {mnemonic} {argument}")
+            print(f"\t{idx: >{line_count_offset}} | {instruction}")
         print("Instructions end.")
 
     # file creation

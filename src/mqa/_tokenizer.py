@@ -1,4 +1,4 @@
-from ._asm_types import Token
+from ._asm_types import *
 
 
 class Tokenizer:
@@ -80,7 +80,7 @@ class Tokenizer:
             # if a character is a quote
             elif char in "\"\'":
                 # add quote back, cuz too lazy to redo the compiler and tokens
-                token_str += char
+                token_str += "\""
 
                 if string_type == char or string_type == "":
                     # if there's an escape character before the quote
@@ -105,7 +105,7 @@ class Tokenizer:
         # delete the repeating newlines
         pointer = 0
         while pointer < (len(token_list) - 1):
-            if token_list[pointer] == token_list[pointer + 1] == "\n":
+            if token_list[pointer].token == token_list[pointer + 1].token == "\n":
                 token_list.pop(pointer)
                 pointer -= 1
             pointer += 1
@@ -122,7 +122,7 @@ class Tokenizer:
         """
 
         # token tree
-        token_tree: list[list[Token] | Token] = []
+        token_tree: TScope = TScope([], BType.MISSING)
 
         # token pointer
         token_ptr = [-1]
@@ -138,7 +138,7 @@ class Tokenizer:
         while (token := next_token()) is not None:
             # if the token is not a bracket => append & continue
             if token.token not in "[]{}()":
-                token_tree.append(token)
+                token_tree.body.append(token)
                 continue
 
             # if it's an opening bracket
@@ -156,12 +156,21 @@ class Tokenizer:
                 # go through each scope token and do a recursive call when needed
                 while (scope_token := next_token()) is not None:
                     if scope_token.token == bracket_opposite and nesting == 0:
-                        token_tree.append(Tokenizer.build_token_tree(scope))
+                        built_token_tree = Tokenizer.build_token_tree(scope).body
+                        match bracket:
+                            case "(":
+                                token_tree.body.append(TScope(
+                                    built_token_tree, BType.ROUND))
+                            case "{":
+                                token_tree.body.append(TScope(
+                                    built_token_tree, BType.CURVED))
+                            case "[":
+                                token_tree.body.append(TScope(
+                                    built_token_tree, BType.SQUARE))
                         break
                     elif scope_token.token == bracket:
                         nesting += 1
                     elif scope_token.token == bracket_opposite:
                         nesting -= 1
                     scope.append(scope_token)
-
         return token_tree
