@@ -46,6 +46,9 @@ class InstructionSet:
         'UO': 49,
         'UOC': 50,
         'UOCR': 51,
+        'LRB': 52,
+        'SRP': 53,
+        'TAB': 54,
         'PRW': 112,
         'PRR': 113,
         'INT': 126,
@@ -59,6 +62,9 @@ class InstructionSet:
         "UO",
         "UOC",
         "UOCR",
+        "LRB",
+        "SRP",
+        "TAB",
         "PRW",
         "INT"
     }
